@@ -10,18 +10,29 @@ const pool = require('./config/database');
 
 // Run startup migrations (idempotent ALTER TABLE statements)
 async function runMigrations() {
+  // Prescriptions: walk-in patient support
+  try { await pool.query(`ALTER TABLE prescriptions ALTER COLUMN patient_id DROP NOT NULL`); } catch (_) {}
+  try { await pool.query(`ALTER TABLE prescriptions ADD COLUMN IF NOT EXISTS walk_in_patient JSONB`); } catch (e) { console.error('Migration:', e.message); }
+
+  // Medicine items: stop support
+  try { await pool.query(`ALTER TABLE medicine_items ADD COLUMN IF NOT EXISTS stopped_at TIMESTAMPTZ`); } catch (_) {}
+  try { await pool.query(`ALTER TABLE medicine_items ADD COLUMN IF NOT EXISTS stop_reason TEXT`); } catch (_) {}
+  try { await pool.query(`ALTER TABLE medicine_items ADD COLUMN IF NOT EXISTS stop_notes TEXT`); } catch (_) {}
+
+  // Medicine dose logs: daily taken tracking
   try {
     await pool.query(`
-      ALTER TABLE prescriptions
-        ALTER COLUMN patient_id DROP NOT NULL;
+      CREATE TABLE IF NOT EXISTS medicine_logs (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        medicine_item_id UUID REFERENCES medicine_items(id) ON DELETE CASCADE,
+        patient_id UUID,
+        dose_date DATE NOT NULL DEFAULT CURRENT_DATE,
+        dose_slot VARCHAR(20) NOT NULL,
+        taken_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE(medicine_item_id, dose_date, dose_slot)
+      )
     `);
-  } catch (_) { /* already nullable */ }
-  try {
-    await pool.query(`
-      ALTER TABLE prescriptions
-        ADD COLUMN IF NOT EXISTS walk_in_patient JSONB;
-    `);
-  } catch (e) { console.error('Migration error:', e.message); }
+  } catch (e) { console.error('Migration medicine_logs:', e.message); }
 }
 runMigrations();
 

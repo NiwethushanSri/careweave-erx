@@ -173,6 +173,203 @@ router.patch('/patients/preferred-pharmacy', authenticate, authorize('patient'),
 });
 
 // ========================
+// MEDICINE REMINDER ROUTES
+// ========================
+
+// Frequency → dose slots mapping
+function getDoseSlots(frequency) {
+  const f = (frequency || '').toLowerCase();
+  if (f.includes('four') || f.includes('4 times')) return ['Morning (8am)', 'Noon (12pm)', 'Evening (4pm)', 'Night (8pm)'];
+  if (f.includes('three') || f.includes('3 times')) return ['Morning (8am)', 'Afternoon (2pm)', 'Night (8pm)'];
+  if (f.includes('every 8')) return ['Morning (8am)', 'Afternoon (4pm)', 'Night (12am)'];
+  if (f.includes('twice') || f.includes('2 times')) return ['Morning (8am)', 'Night (8pm)'];
+  if (f.includes('as needed')) return ['As needed'];
+  return ['Morning (8am)']; // once daily default
+}
+
+// GET /patient/medicines/today — all active medicine items with today's log
+router.get('/patient/medicines/today', authenticate, authorize('patient'), async (req, res) => {
+  try {
+    const patientRes = await pool.query('SELECT id FROM patients WHERE user_id = $1', [req.user.id]);
+    if (!patientRes.rows[0]) return res.status(404).json({ success: false, message: 'Patient not found' });
+    const patientId = patientRes.rows[0].id;
+    const today = new Date().toISOString().slice(0, 10);
+
+    // Get all dispensed active prescriptions with their medicines
+    const result = await pool.query(`
+      SELECT mi.id as med_id, mi.medicine_name, mi.dosage, mi.frequency, mi.instructions,
+             mi.duration, mi.stopped_at, mi.stop_reason, mi.stop_notes,
+             p.id as prescription_id, p.prescription_code, p.diagnosis, p.valid_until,
+             p.dispensed_at,
+             u.full_name as doctor_name, d.specialisation,
+             json_agg(json_build_object('slot', ml.dose_slot, 'taken_at', ml.taken_at))
+               FILTER (WHERE ml.id IS NOT NULL AND ml.dose_date = $2::date) as taken_slots
+      FROM prescriptions p
+      JOIN medicine_items mi ON mi.prescription_id = p.id
+      JOIN doctors d ON d.id = p.doctor_id
+      JOIN users u ON u.id = d.user_id
+      LEFT JOIN medicine_logs ml ON ml.medicine_item_id = mi.id AND ml.dose_date = $2::date
+      WHERE p.patient_id = $1
+        AND p.status = 'dispensed'
+        AND p.valid_until >= NOW()
+        AND mi.stopped_at IS NULL
+      GROUP BY mi.id, p.id, u.full_name, d.specialisation
+      ORDER BY p.dispensed_at DESC, mi.medicine_name
+    `, [patientId, today]);
+
+    // Build medicine schedule with slot status
+    const medicines = result.rows.map(row => {
+      const slots = getDoseSlots(row.frequency);
+      const takenSlots = (row.taken_slots || []).map(s => s.slot);
+      return {
+        med_id: row.med_id,
+        medicine_name: row.medicine_name,
+        dosage: row.dosage,
+        frequency: row.frequency,
+        instructions: row.instructions,
+        duration: row.duration,
+        prescription_code: row.prescription_code,
+        prescription_id: row.prescription_id,
+        diagnosis: row.diagnosis,
+        doctor_name: row.doctor_name,
+        specialisation: row.specialisation,
+        valid_until: row.valid_until,
+        slots: slots.map(slot => ({
+          slot,
+          taken: takenSlots.includes(slot),
+          taken_at: (row.taken_slots || []).find(s => s.slot === slot)?.taken_at || null,
+        })),
+        all_taken: slots.every(s => takenSlots.includes(s)),
+        pending_count: slots.filter(s => !takenSlots.includes(s)).length,
+      };
+    });
+
+    const totalPending = medicines.reduce((a, m) => a + m.pending_count, 0);
+
+    // Auto-create portal reminder notification if not done today
+    if (medicines.length > 0 && totalPending > 0) {
+      const todayNotifCheck = await pool.query(
+        `SELECT id FROM notifications WHERE user_id = $1 AND type = 'MEDICINE_REMINDER'
+         AND DATE(created_at) = $2::date LIMIT 1`,
+        [req.user.id, today]
+      );
+      if (!todayNotifCheck.rows.length) {
+        const medNames = medicines.slice(0, 3).map(m => m.medicine_name).join(', ');
+        await pool.query(
+          `INSERT INTO notifications (user_id, type, title, message, is_read)
+           VALUES ($1, 'MEDICINE_REMINDER', $2, $3, false)`,
+          [req.user.id, '💊 Daily Medicine Reminder',
+           `You have ${totalPending} dose${totalPending > 1 ? 's' : ''} to take today: ${medNames}${medicines.length > 3 ? ' and more' : ''}.`]
+        );
+      }
+    }
+
+    res.json({ success: true, data: { medicines, today, total_pending: totalPending } });
+  } catch (err) {
+    console.error('Today medicines error:', err);
+    res.status(500).json({ success: false, message: 'Failed to load medicine schedule' });
+  }
+});
+
+// POST /patient/medicines/:id/log — mark a dose as taken
+router.post('/patient/medicines/:id/log', authenticate, authorize('patient'), async (req, res) => {
+  try {
+    const patientRes = await pool.query('SELECT id FROM patients WHERE user_id = $1', [req.user.id]);
+    if (!patientRes.rows[0]) return res.status(404).json({ success: false, message: 'Patient not found' });
+    const patientId = patientRes.rows[0].id;
+    const { dose_slot } = req.body;
+    const today = new Date().toISOString().slice(0, 10);
+
+    await pool.query(
+      `INSERT INTO medicine_logs (medicine_item_id, patient_id, dose_date, dose_slot)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (medicine_item_id, dose_date, dose_slot) DO NOTHING`,
+      [req.params.id, patientId, today, dose_slot]
+    );
+    res.json({ success: true, message: 'Dose logged' });
+  } catch (err) {
+    console.error('Log dose error:', err);
+    res.status(500).json({ success: false, message: 'Failed to log dose' });
+  }
+});
+
+// DELETE /patient/medicines/:id/log/:slot — undo a taken dose
+router.delete('/patient/medicines/:id/log', authenticate, authorize('patient'), async (req, res) => {
+  try {
+    const { dose_slot } = req.body;
+    const today = new Date().toISOString().slice(0, 10);
+    await pool.query(
+      `DELETE FROM medicine_logs WHERE medicine_item_id = $1 AND dose_date = $2 AND dose_slot = $3`,
+      [req.params.id, today, dose_slot]
+    );
+    res.json({ success: true, message: 'Dose unmarked' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed' });
+  }
+});
+
+// POST /patient/medicines/:id/stop — patient stops a medicine
+router.post('/patient/medicines/:id/stop', authenticate, authorize('patient'), async (req, res) => {
+  try {
+    const { stop_reason, stop_notes } = req.body;
+    if (!stop_reason) return res.status(400).json({ success: false, message: 'Stop reason required' });
+
+    // Verify the medicine belongs to this patient
+    const check = await pool.query(
+      `SELECT mi.id FROM medicine_items mi
+       JOIN prescriptions p ON p.id = mi.prescription_id
+       JOIN patients pa ON pa.id = p.patient_id
+       WHERE mi.id = $1 AND pa.user_id = $2`,
+      [req.params.id, req.user.id]
+    );
+    if (!check.rows[0]) return res.status(403).json({ success: false, message: 'Not authorised' });
+
+    await pool.query(
+      `UPDATE medicine_items SET stopped_at = NOW(), stop_reason = $1, stop_notes = $2 WHERE id = $3`,
+      [stop_reason, stop_notes || null, req.params.id]
+    );
+
+    // Create notification about stopped medicine
+    const med = await pool.query('SELECT medicine_name FROM medicine_items WHERE id = $1', [req.params.id]);
+    await pool.query(
+      `INSERT INTO notifications (user_id, type, title, message, is_read)
+       VALUES ($1, 'MEDICINE_STOPPED', $2, $3, false)`,
+      [req.user.id, `Medicine Stopped`,
+       `You stopped ${med.rows[0]?.medicine_name}. Reason: ${stop_reason}. Your doctor's record has been updated.`]
+    );
+
+    res.json({ success: true, message: 'Medicine stopped successfully' });
+  } catch (err) {
+    console.error('Stop medicine error:', err);
+    res.status(500).json({ success: false, message: 'Failed to stop medicine' });
+  }
+});
+
+// GET /patient/medicines/stopped — all stopped medicines
+router.get('/patient/medicines/stopped', authenticate, authorize('patient'), async (req, res) => {
+  try {
+    const patientRes = await pool.query('SELECT id FROM patients WHERE user_id = $1', [req.user.id]);
+    if (!patientRes.rows[0]) return res.status(404).json({ success: false });
+    const patientId = patientRes.rows[0].id;
+
+    const result = await pool.query(`
+      SELECT mi.id, mi.medicine_name, mi.dosage, mi.frequency, mi.stopped_at, mi.stop_reason, mi.stop_notes,
+             p.prescription_code, p.diagnosis, u.full_name as doctor_name
+      FROM medicine_items mi
+      JOIN prescriptions p ON p.id = mi.prescription_id
+      JOIN doctors d ON d.id = p.doctor_id
+      JOIN users u ON u.id = d.user_id
+      WHERE p.patient_id = $1 AND mi.stopped_at IS NOT NULL
+      ORDER BY mi.stopped_at DESC
+    `, [patientId]);
+
+    res.json({ success: true, data: result.rows });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed' });
+  }
+});
+
+// ========================
 // NOTIFICATIONS ROUTES
 // ========================
 router.get('/notifications', authenticate, async (req, res) => {

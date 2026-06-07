@@ -4,7 +4,8 @@ import api from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
-import { FileText, Bell, MapPin, Activity, User, Pill, Stethoscope, Download, Navigation, Clock, ChevronDown, ChevronUp } from 'lucide-react';
+import { FileText, Bell, MapPin, Activity, User, Pill, Stethoscope, Download, Navigation, Clock, ChevronDown, ChevronUp, AlarmClock } from 'lucide-react';
+import TodayMedicines from './TodayMedicines';
 
 // Expandable prescription card with full medicine details
 function PrescriptionCard({ p, navigate, statusColors }) {
@@ -133,7 +134,7 @@ export default function PatientDashboard() {
   const [notifications, setNotifications] = useState([]);
   const [pharmacies, setPharmacies] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState('dashboard');
+  const [tab, setTab] = useState('today');
 
   useEffect(() => {
     Promise.all([
@@ -201,13 +202,16 @@ export default function PatientDashboard() {
   });
   const doctors = Object.values(doctorMap).sort((a, b) => b.visits - a.visits);
 
+  const unreadCount = notifications.filter(n => !n.is_read).length;
+
   const tabs = [
+    { key: 'today', label: 'Today\'s Meds', icon: AlarmClock },
     { key: 'tracker', label: 'Track Prescription', icon: Navigation },
     { key: 'dashboard', label: 'Dashboard', icon: Activity },
     { key: 'prescriptions', label: 'Prescriptions', icon: FileText },
     { key: 'medicines', label: 'Medicines', icon: Pill },
     { key: 'doctors', label: 'My Doctors', icon: Stethoscope },
-    { key: 'notifications', label: `Alerts ${notifications.filter(n => !n.is_read).length > 0 ? `(${notifications.filter(n => !n.is_read).length})` : ''}`, icon: Bell },
+    { key: 'notifications', label: `Alerts${unreadCount > 0 ? ` (${unreadCount})` : ''}`, icon: Bell },
     { key: 'pharmacy', label: 'Pharmacy', icon: MapPin },
   ];
 
@@ -348,6 +352,9 @@ export default function PatientDashboard() {
           </div>
         </>
       )}
+
+      {/* TODAY'S MEDICINES TAB */}
+      {tab === 'today' && <TodayMedicines />}
 
       {/* TRACKER TAB */}
       {tab === 'tracker' && (
