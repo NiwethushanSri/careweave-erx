@@ -6,6 +6,24 @@ const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 
 const routes = require('./routes');
+const pool = require('./config/database');
+
+// Run startup migrations (idempotent ALTER TABLE statements)
+async function runMigrations() {
+  try {
+    await pool.query(`
+      ALTER TABLE prescriptions
+        ALTER COLUMN patient_id DROP NOT NULL;
+    `);
+  } catch (_) { /* already nullable */ }
+  try {
+    await pool.query(`
+      ALTER TABLE prescriptions
+        ADD COLUMN IF NOT EXISTS walk_in_patient JSONB;
+    `);
+  } catch (e) { console.error('Migration error:', e.message); }
+}
+runMigrations();
 
 const app = express();
 const PORT = process.env.PORT || 5000;

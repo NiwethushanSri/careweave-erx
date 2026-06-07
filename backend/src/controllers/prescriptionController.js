@@ -18,7 +18,7 @@ const createPrescription = async (req, res) => {
   try {
     await client.query('BEGIN');
 
-    const { patient_nic, pharmacy_id, diagnosis, notes, valid_days = 30, medicines } = req.body;
+    const { patient_nic, manual_patient, pharmacy_id, diagnosis, notes, valid_days = 30, medicines } = req.body;
 
     // Get doctor profile
     const doctorResult = await client.query(
@@ -30,38 +30,57 @@ const createPrescription = async (req, res) => {
     }
     const doctor = doctorResult.rows[0];
 
-    // Get patient — case-insensitive NIC, also accept mobile
-    const patientResult = await client.query(
-      `SELECT pa.id, u.full_name, u.mobile, u.email FROM patients pa JOIN users u ON u.id = pa.user_id
-       WHERE UPPER(TRIM(u.nic)) = UPPER(TRIM($1)) OR TRIM(u.mobile) = TRIM($1)`,
-      [patient_nic]
-    );
-    if (!patientResult.rows[0]) {
-      return res.status(404).json({ success: false, message: 'Patient not found' });
+    let patientId = null;
+    let walkInData = null;
+
+    if (manual_patient && manual_patient.name) {
+      // Walk-in / unregistered patient — store details in walk_in_patient JSON
+      walkInData = {
+        name: manual_patient.name,
+        nic: manual_patient.nic || null,
+        dob: manual_patient.dob || null,
+        gender: manual_patient.gender || null,
+        mobile: manual_patient.mobile || null,
+      };
+    } else if (patient_nic) {
+      // Registered patient — look up in DB
+      const patientResult = await client.query(
+        `SELECT pa.id FROM patients pa JOIN users u ON u.id = pa.user_id
+         WHERE UPPER(TRIM(u.nic)) = UPPER(TRIM($1)) OR TRIM(u.mobile) = TRIM($1)`,
+        [patient_nic]
+      );
+      if (!patientResult.rows[0]) {
+        return res.status(404).json({ success: false, message: 'Patient not found. You can use "Enter Manually" for unregistered patients.' });
+      }
+      patientId = patientResult.rows[0].id;
+    } else {
+      return res.status(400).json({ success: false, message: 'Provide patient NIC/mobile or enter patient details manually' });
     }
-    const patient = patientResult.rows[0];
 
     const code = generatePrescriptionCode();
     const validUntil = new Date(Date.now() + valid_days * 24 * 60 * 60 * 1000);
+    const signatureInput = patientId ? `${code}:${doctor.id}:${patientId}` : `${code}:${doctor.id}:walkin`;
     const signature = crypto.createHmac('sha256', process.env.JWT_SECRET)
-      .update(`${code}:${doctor.id}:${patient.id}`)
+      .update(signatureInput)
       .digest('hex');
 
     // Generate QR code
     const qrData = JSON.stringify({
       code,
       doctor_id: doctor.id,
-      patient_id: patient.id,
+      patient_id: patientId,
+      walk_in: !!walkInData,
       created_at: new Date().toISOString(),
       verify_url: `${process.env.APP_BASE_URL}/verify/${code}`
     });
     const qrCode = await QRCode.toDataURL(qrData);
 
     const prescResult = await client.query(
-      `INSERT INTO prescriptions 
-       (prescription_code, doctor_id, patient_id, pharmacy_id, qr_code, digital_signature, diagnosis, notes, status, valid_until)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'created',$9) RETURNING *`,
-      [code, doctor.id, patient.id, pharmacy_id || null, qrCode, signature, diagnosis, notes, validUntil]
+      `INSERT INTO prescriptions
+       (prescription_code, doctor_id, patient_id, pharmacy_id, qr_code, digital_signature, diagnosis, notes, status, valid_until, walk_in_patient)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'created',$9,$10) RETURNING *`,
+      [code, doctor.id, patientId, pharmacy_id || null, qrCode, signature, diagnosis, notes, validUntil,
+       walkInData ? JSON.stringify(walkInData) : null]
     );
     const prescription = prescResult.rows[0];
 
@@ -78,16 +97,18 @@ const createPrescription = async (req, res) => {
     }
 
     await client.query('COMMIT');
-    await auditLog(req.user.id, 'CREATE_PRESCRIPTION', 'prescriptions', prescription.id, null, { code }, req.ip);
+    await auditLog(req.user.id, 'CREATE_PRESCRIPTION', 'prescriptions', prescription.id, null, { code, walk_in: !!walkInData }, req.ip);
 
-    // Notify patient
-    await sendNotification(patient.id, {
-      type: 'PRESCRIPTION_CREATED',
-      title: 'New Prescription',
-      message: `A prescription (${code}) has been created for you.`,
-      reference_id: prescription.id,
-      reference_type: 'prescriptions'
-    });
+    // Notify registered patient only
+    if (patientId) {
+      await sendNotification(patientId, {
+        type: 'PRESCRIPTION_CREATED',
+        title: 'New Prescription',
+        message: `A prescription (${code}) has been created for you.`,
+        reference_id: prescription.id,
+        reference_type: 'prescriptions'
+      });
+    }
 
     res.status(201).json({
       success: true,

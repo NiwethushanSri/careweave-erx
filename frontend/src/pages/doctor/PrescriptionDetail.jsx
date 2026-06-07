@@ -112,12 +112,29 @@ export default function PrescriptionDetail() {
       </div>
 
       <div className="card p-5 mb-4">
-        <h2 className="font-semibold mb-3">Patient</h2>
-        <div className="grid grid-cols-2 gap-2 text-sm">
-          <div><span className="text-gray-500">Name:</span> <span className="font-medium">{prescription.patient_name}</span></div>
-          <div><span className="text-gray-500">NIC:</span> <span className="font-medium">{prescription.patient_nic}</span></div>
-          {prescription.patient_mobile && <div><span className="text-gray-500">Mobile:</span> {prescription.patient_mobile}</div>}
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-semibold">Patient</h2>
+          {prescription.walk_in_patient && (
+            <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Walk-in / Unregistered</span>
+          )}
         </div>
+        {(() => {
+          const wi = prescription.walk_in_patient;
+          const name = wi ? wi.name : prescription.patient_name;
+          const nic = wi ? wi.nic : prescription.patient_nic;
+          const mobile = wi ? wi.mobile : prescription.patient_mobile;
+          const dob = wi ? wi.dob : null;
+          const gender = wi ? wi.gender : null;
+          return (
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <div><span className="text-gray-500">Name:</span> <span className="font-medium">{name || '—'}</span></div>
+              <div><span className="text-gray-500">NIC:</span> <span className="font-medium">{nic || '—'}</span></div>
+              {mobile && <div><span className="text-gray-500">Mobile:</span> {mobile}</div>}
+              {dob && <div><span className="text-gray-500">DOB:</span> {dob}</div>}
+              {gender && <div><span className="text-gray-500">Gender:</span> {gender}</div>}
+            </div>
+          );
+        })()}
       </div>
 
       <div className="card p-5 mb-4">

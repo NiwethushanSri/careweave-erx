@@ -134,7 +134,10 @@ export default function PharmacyDashboard() {
                       <span className={`status-badge ${statusColors[p.status] || 'bg-gray-100 text-gray-600'}`}>{p.status}</span>
                       <span className="text-xs text-gray-400 ml-auto">{format(new Date(p.created_at), 'dd MMM')}</span>
                     </div>
-                    <p className="text-sm text-gray-700 font-medium truncate">{p.patient_name}</p>
+                    <p className="text-sm text-gray-700 font-medium truncate">
+                      {p.patient_name || p.walk_in_patient?.name || 'Walk-in Patient'}
+                      {p.walk_in_patient && <span className="ml-1 text-xs text-amber-600">(Unregistered)</span>}
+                    </p>
                     <p className="text-xs text-gray-400">Dr. {p.doctor_name} · {p.medicines?.length || 0} item(s)</p>
                     {p.diagnosis && <p className="text-xs text-gray-500 mt-0.5">Dx: {p.diagnosis}</p>}
                   </div>
