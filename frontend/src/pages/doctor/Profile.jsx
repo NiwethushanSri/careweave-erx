@@ -53,7 +53,7 @@ function SpecialisationField({ value, onChange }) {
 }
 
 export default function DoctorProfile() {
-  const { user, setUser } = useAuth();
+  const { user, refreshUser } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -94,9 +94,8 @@ export default function DoctorProfile() {
     setSaving(true);
     try {
       await api.patch('/profile/doctor', form);
+      await refreshUser(); // sync name/email in nav and dashboard immediately
       toast.success('Profile updated successfully!');
-      // Refresh auth user name if changed
-      if (setUser) setUser(u => ({ ...u, full_name: form.full_name, email: form.email, mobile: form.mobile }));
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to save');
     } finally {

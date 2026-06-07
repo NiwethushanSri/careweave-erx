@@ -13,7 +13,7 @@ const SL_DISTRICTS = [
 ];
 
 export default function PharmacyProfile() {
-  const { setUser } = useAuth();
+  const { refreshUser } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -54,8 +54,8 @@ export default function PharmacyProfile() {
     setSaving(true);
     try {
       await api.patch('/profile/pharmacy', form);
+      await refreshUser();
       toast.success('Profile updated successfully!');
-      if (setUser) setUser(u => ({ ...u, full_name: form.full_name, email: form.email, mobile: form.mobile }));
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to save');
     } finally {

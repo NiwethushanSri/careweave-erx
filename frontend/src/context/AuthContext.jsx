@@ -22,10 +22,19 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   }, []);
 
+  const refreshUser = useCallback(async () => {
+    try {
+      const { data } = await api.get('/auth/me');
+      const updated = data.data;
+      localStorage.setItem('rxuser', JSON.stringify(updated));
+      setUser(updated);
+    } catch {}
+  }, []);
+
   const isRole = (...roles) => user && roles.includes(user.role);
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isRole }}>
+    <AuthContext.Provider value={{ user, setUser, login, logout, isRole, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

@@ -72,7 +72,7 @@ export default function DoctorDashboard() {
             </span>
           </p>
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
-            {emoji} {greeting}, Dr. {user?.full_name}!
+            {emoji} {greeting}, Dr. {user?.full_name?.replace(/^Dr\.?\s*/i, '')}!
           </h1>
           <p className="text-gray-400 text-sm mt-0.5">Here's your prescription activity overview</p>
         </div>
