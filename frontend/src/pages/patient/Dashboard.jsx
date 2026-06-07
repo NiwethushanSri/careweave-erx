@@ -118,34 +118,34 @@ export default function PatientDashboard() {
   if (loading) return <div className="p-8 text-center text-gray-400">Loading...</div>;
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="p-4 sm:p-6 max-w-5xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-5 gap-3">
         <div>
-          <p className="text-sm text-gray-400 mb-0.5 flex items-center gap-1.5">
+          <p className="text-xs text-gray-400 mb-0.5 flex items-center gap-1.5 flex-wrap">
             <Clock className="w-3.5 h-3.5" />
-            {format(now, 'EEEE, dd MMMM yyyy')} &nbsp;·&nbsp;
+            {format(now, 'EEE, dd MMM yyyy')} &nbsp;·&nbsp;
             <span className="font-mono font-semibold text-gray-600 tracking-wider">
               {format(now, 'hh:mm:ss aa')}
             </span>
           </p>
-          <h1 className="text-2xl font-bold text-gray-900">{emoji} {greeting}, {user?.full_name}!</h1>
-          <p className="text-gray-400 text-sm mt-0.5">NIC: {user?.nic} · Here's your health overview</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{emoji} {greeting}, {user?.full_name}!</h1>
+          <p className="text-gray-400 text-xs mt-0.5">NIC: {user?.nic} · Here's your health overview</p>
         </div>
         <button onClick={() => navigate(`/patient/summary-pdf`)}
-          className="btn-primary flex items-center gap-2 text-sm">
-          <Download className="w-4 h-4" /> My Health Summary PDF
+          className="btn-primary flex items-center gap-2 text-sm self-start sm:self-auto whitespace-nowrap">
+          <Download className="w-4 h-4" /> Health Summary PDF
         </button>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 mb-6 border-b border-gray-100 overflow-x-auto">
+      {/* Tabs - scrollable on mobile */}
+      <div className="flex gap-1 mb-5 border-b border-gray-100 overflow-x-auto pb-0 scrollbar-hide">
         {tabs.map(t => (
           <button key={t.key} onClick={() => setTab(t.key)}
-            className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
+            className={`flex items-center gap-1.5 px-3 py-2.5 text-xs sm:text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
               tab === t.key ? 'border-brand-600 text-brand-700' : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}>
-            <t.icon className="w-4 h-4" /> {t.label}
+            <t.icon className="w-3.5 h-3.5" /> {t.label}
           </button>
         ))}
       </div>

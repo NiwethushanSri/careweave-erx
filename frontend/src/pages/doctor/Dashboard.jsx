@@ -60,23 +60,23 @@ export default function DoctorDashboard() {
   };
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
+    <div className="p-4 sm:p-6 max-w-6xl mx-auto">
       {/* Welcome Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-3">
         <div>
-          <p className="text-sm text-gray-400 mb-0.5 flex items-center gap-1.5">
+          <p className="text-xs text-gray-400 mb-0.5 flex items-center gap-1.5 flex-wrap">
             <Clock className="w-3.5 h-3.5" />
-            {format(now, 'EEEE, dd MMMM yyyy')} &nbsp;·&nbsp;
+            {format(now, 'EEE, dd MMM yyyy')} &nbsp;·&nbsp;
             <span className="font-mono font-semibold text-gray-600 tracking-wider">
               {format(now, 'hh:mm:ss aa')}
             </span>
           </p>
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
             {emoji} {greeting}, Dr. {user?.full_name}!
           </h1>
           <p className="text-gray-400 text-sm mt-0.5">Here's your prescription activity overview</p>
         </div>
-        <Link to="/doctor/new-prescription" className="btn-primary flex items-center gap-2">
+        <Link to="/doctor/new-prescription" className="btn-primary flex items-center gap-2 self-start sm:self-auto whitespace-nowrap">
           <Plus className="w-4 h-4" /> New Prescription
         </Link>
       </div>

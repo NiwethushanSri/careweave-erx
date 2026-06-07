@@ -74,20 +74,20 @@ export default function PharmacyDashboard() {
   };
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
-      <div className="mb-8">
-        <p className="text-sm text-gray-400 mb-0.5 flex items-center gap-1.5">
+    <div className="p-4 sm:p-6 max-w-6xl mx-auto">
+      <div className="mb-5">
+        <p className="text-xs text-gray-400 mb-0.5 flex items-center gap-1.5 flex-wrap">
           <Clock className="w-3.5 h-3.5" />
-          {format(now, 'EEEE, dd MMMM yyyy')} &nbsp;·&nbsp;
+          {format(now, 'EEE, dd MMM yyyy')} &nbsp;·&nbsp;
           <span className="font-mono font-semibold text-gray-600 tracking-wider">
             {format(now, 'hh:mm:ss aa')}
           </span>
         </p>
-        <h1 className="text-2xl font-bold text-gray-900">{emoji} {greeting}, {user?.full_name}!</h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{emoji} {greeting}, {user?.full_name}!</h1>
         <p className="text-gray-400 text-sm mt-0.5">Here's your pharmacy activity overview</p>
       </div>
 
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-3 gap-3 sm:gap-4 mb-5">
         {[
           { label: 'Awaiting', count: counts.sent, icon: Clock, color: 'text-blue-500' },
           { label: 'Received', count: counts.received, icon: Package, color: 'text-purple-500' },

@@ -91,7 +91,7 @@ export default function RegisterPatient() {
             <p className="text-gray-500 text-sm mt-1">Create your patient account on <span className="font-semibold text-brand-600">CareWeave eRx</span></p>
           </div>
 
-          <div className="card p-8">
+          <div className="card p-5 sm:p-8">
             <form onSubmit={handleSubmit} className="space-y-4">
 
               {/* Full name */}

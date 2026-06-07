@@ -36,7 +36,7 @@ export default function RegisterPharmacy() {
           <p className="text-gray-500 text-sm mt-1">Register your pharmacy on <span className="font-semibold text-brand-600">CareWeave eRx</span></p>
         </div>
 
-        <div className="card p-8">
+        <div className="card p-5 sm:p-8">
           <form onSubmit={handleSubmit} className="space-y-4">
             <h3 className="font-semibold text-gray-700 text-sm uppercase tracking-wide">Owner Details</h3>
             <div className="grid grid-cols-2 gap-3">

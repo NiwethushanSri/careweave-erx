@@ -97,12 +97,12 @@ export default function NewPrescription() {
   };
 
   return (
-    <div className="p-6 max-w-3xl mx-auto">
+    <div className="p-4 sm:p-6 max-w-3xl mx-auto">
       <h1 className="text-2xl font-bold text-gray-900 mb-6">New Prescription</h1>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Patient Search */}
-        <div className="card p-6">
+        <div className="card p-4 sm:p-6">
           <h2 className="font-semibold mb-4">Patient</h2>
           <div className="flex gap-2">
             <input
@@ -135,7 +135,7 @@ export default function NewPrescription() {
 
         {/* Pharmacy — only show after patient found */}
         {patient && (
-          <div className="card p-6">
+          <div className="card p-4 sm:p-6">
             <div className="flex items-center justify-between mb-1">
               <h2 className="font-semibold">Pharmacy</h2>
               {patient.district && (
@@ -172,7 +172,7 @@ export default function NewPrescription() {
         )}
 
         {/* Clinical Details */}
-        <div className="card p-6">
+        <div className="card p-4 sm:p-6">
           <h2 className="font-semibold mb-4">Clinical Details</h2>
           <div className="space-y-4">
             <div>
@@ -199,7 +199,7 @@ export default function NewPrescription() {
         </div>
 
         {/* Medicines */}
-        <div className="card p-6">
+        <div className="card p-4 sm:p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-semibold">Medicines</h2>
             <button type="button" onClick={addMed} className="btn-secondary flex items-center gap-1 text-sm">
