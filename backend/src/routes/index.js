@@ -93,25 +93,72 @@ router.get('/pharmacies', async (req, res) => {
 // ========================
 router.get('/patients/search', authenticate, authorize('doctor'), async (req, res) => {
   try {
-    const { nic } = req.query;
-    const q = (nic || '').trim();
-    if (!q) return res.status(400).json({ success: false, message: 'Search query required' });
+    // Support: ?q=<anything>  OR  ?name=X&dob=Y&mobile=Z (field-specific)
+    const { q, name, dob, mobile, nic: nicParam } = req.query;
+    const baseSelect = `
+      SELECT pa.id, u.full_name, u.nic, u.mobile, pa.date_of_birth, pa.gender,
+             pa.blood_group, pa.allergies, pa.address, pa.city, pa.district,
+             pa.preferred_pharmacy_id, ph.pharmacy_name as preferred_pharmacy
+      FROM patients pa
+      JOIN users u ON u.id = pa.user_id
+      LEFT JOIN pharmacies ph ON ph.id = pa.preferred_pharmacy_id`;
 
-    const result = await pool.query(
-      `SELECT pa.id, u.full_name, u.nic, u.mobile, pa.date_of_birth, pa.gender, pa.blood_group, pa.allergies,
-        pa.address, pa.city, pa.district,
-        pa.preferred_pharmacy_id,
-        ph.pharmacy_name as preferred_pharmacy
-       FROM patients pa JOIN users u ON u.id=pa.user_id
-       LEFT JOIN pharmacies ph ON ph.id=pa.preferred_pharmacy_id
-       WHERE UPPER(TRIM(u.nic)) = UPPER($1)
-          OR TRIM(u.mobile) = $1
-          OR u.email = $1`,
-      [q]
-    );
-    if (!result.rows[0]) return res.status(404).json({ success: false, message: 'Patient not found' });
-    res.json({ success: true, data: result.rows[0] });
-  } catch (err) { res.status(500).json({ success: false, message: 'Failed' }); }
+    let rows = [];
+
+    if (q) {
+      // Smart single-box search: try exact NIC/mobile/email first, then name ILIKE
+      const exact = await pool.query(
+        `${baseSelect}
+         WHERE UPPER(TRIM(u.nic)) = UPPER($1)
+            OR TRIM(u.mobile) = $1
+            OR u.email = LOWER($1)
+         LIMIT 10`,
+        [q.trim()]
+      );
+      if (exact.rows.length) {
+        rows = exact.rows;
+      } else {
+        // Partial name search
+        const like = await pool.query(
+          `${baseSelect}
+           WHERE u.full_name ILIKE $1
+           ORDER BY u.full_name
+           LIMIT 10`,
+          [`%${q.trim()}%`]
+        );
+        rows = like.rows;
+      }
+    } else {
+      // Field-specific search
+      const conditions = [];
+      const params = [];
+      if (nicParam) { params.push(nicParam.trim()); conditions.push(`UPPER(TRIM(u.nic)) = UPPER($${params.length})`); }
+      if (mobile)   { params.push(mobile.trim());   conditions.push(`TRIM(u.mobile) = $${params.length}`); }
+      if (dob)      { params.push(dob.trim());       conditions.push(`pa.date_of_birth::date = $${params.length}::date`); }
+      if (name)     { params.push(`%${name.trim()}%`); conditions.push(`u.full_name ILIKE $${params.length}`); }
+
+      if (!conditions.length) {
+        return res.status(400).json({ success: false, message: 'Provide at least one search field' });
+      }
+      const result = await pool.query(
+        `${baseSelect} WHERE ${conditions.join(' AND ')} ORDER BY u.full_name LIMIT 20`,
+        params
+      );
+      rows = result.rows;
+    }
+
+    if (!rows.length) return res.status(404).json({ success: false, message: 'No patient found' });
+
+    // If exactly one result, return as single object (backwards-compatible)
+    if (rows.length === 1) {
+      return res.json({ success: true, data: rows[0], multiple: false });
+    }
+    // Multiple results
+    return res.json({ success: true, data: rows[0], results: rows, multiple: true });
+  } catch (err) {
+    console.error('Patient search error:', err);
+    res.status(500).json({ success: false, message: 'Search failed' });
+  }
 });
 
 router.patch('/patients/preferred-pharmacy', authenticate, authorize('patient'), async (req, res) => {

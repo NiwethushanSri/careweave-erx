@@ -2,22 +2,55 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
-import { Plus, Trash2, Search, MapPin, UserX, UserCheck, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Trash2, Search, MapPin, UserX, UserCheck, X, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
 
 const emptyMed = { medicine_name: '', generic_name: '', dosage: '', quantity: 1, frequency: '', duration: '', instructions: '' };
-
 const emptyManual = { name: '', nic: '', dob: '', gender: '', mobile: '' };
+
+// ── Patient card shown after selection ─────────────────────────────────────
+function PatientCard({ patient, onClear }) {
+  return (
+    <div className="mt-3 p-3 bg-green-50 rounded-lg border border-green-200 text-sm">
+      <div className="flex items-start justify-between gap-2">
+        <div className="space-y-0.5 min-w-0">
+          <p className="font-semibold text-green-800 truncate">{patient.full_name}</p>
+          <p className="text-green-600 text-xs">
+            {patient.nic && <>NIC: {patient.nic} · </>}
+            {patient.gender && <>{patient.gender} · </>}
+            {patient.date_of_birth && <>DOB: {format(new Date(patient.date_of_birth), 'dd MMM yyyy')}</>}
+          </p>
+          {patient.mobile && <p className="text-green-600 text-xs">📞 {patient.mobile}</p>}
+          {patient.district && (
+            <p className="text-green-700 text-xs flex items-center gap-1">
+              <MapPin className="w-3 h-3" />
+              {patient.city ? `${patient.city}, ` : ''}{patient.district} District
+            </p>
+          )}
+          {patient.allergies && (
+            <p className="text-red-600 font-medium text-xs">⚠ Allergies: {patient.allergies}</p>
+          )}
+        </div>
+        <button type="button" onClick={onClear}
+          className="text-gray-400 hover:text-red-500 shrink-0 mt-0.5">
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export default function NewPrescription() {
   const navigate = useNavigate();
 
-  // Patient mode: 'search' | 'manual'
+  // Patient mode
   const [mode, setMode] = useState('search');
 
-  // Search mode
-  const [patientNic, setPatientNic] = useState('');
-  const [patient, setPatient] = useState(null);
+  // Search fields
+  const [searchFields, setSearchFields] = useState({ q: '', name: '', dob: '', mobile: '' });
+  const [searchType, setSearchType] = useState('quick'); // 'quick' | 'advanced'
+  const [results, setResults] = useState([]);   // multiple hits
+  const [patient, setPatient] = useState(null); // selected patient
   const [searching, setSearching] = useState(false);
 
   // Manual mode
@@ -35,50 +68,81 @@ export default function NewPrescription() {
   const [medicines, setMedicines] = useState([{ ...emptyMed }]);
   const [loading, setLoading] = useState(false);
 
+  const setSF = (k, v) => setSearchFields(f => ({ ...f, [k]: v }));
   const setManualField = (k, v) => setManual(m => ({ ...m, [k]: v }));
 
   const switchMode = (m) => {
     setMode(m);
     setPatient(null);
-    setPatientNic('');
+    setResults([]);
+    setSearchFields({ q: '', name: '', dob: '', mobile: '' });
     setManual({ ...emptyManual });
     setPharmacies([]);
     setPharmacyId('');
   };
 
-  const searchPatient = async () => {
-    if (!patientNic.trim()) return;
-    setSearching(true);
+  const loadPharmacies = async (found) => {
+    setPharmacies([]);
+    setPharmacyId('');
+    setLoadingPharmacies(true);
     try {
-      const { data } = await api.get(`/patients/search?nic=${patientNic}`);
-      const found = data.data;
-      setPatient(found);
-      setPharmacies([]);
-      setPharmacyId('');
-
-      if (found.district) {
-        setLoadingPharmacies(true);
-        try {
-          const ph = await api.get(`/pharmacies?district=${encodeURIComponent(found.district)}`);
-          const list = ph.data.data || [];
-          setPharmacies(list);
-          if (found.preferred_pharmacy_id) {
-            const match = list.find(p => p.id === found.preferred_pharmacy_id);
-            if (match) setPharmacyId(match.id);
-          }
-        } finally {
-          setLoadingPharmacies(false);
-        }
-      } else {
-        const ph = await api.get('/pharmacies');
-        setPharmacies(ph.data.data || []);
-        if (found.preferred_pharmacy_id) setPharmacyId(found.preferred_pharmacy_id);
+      const url = found.district
+        ? `/pharmacies?district=${encodeURIComponent(found.district)}`
+        : '/pharmacies';
+      const ph = await api.get(url);
+      const list = ph.data.data || [];
+      setPharmacies(list);
+      if (found.preferred_pharmacy_id) {
+        const match = list.find(p => p.id === found.preferred_pharmacy_id);
+        if (match) setPharmacyId(match.id);
       }
-      toast.success('Patient found');
-    } catch {
-      toast.error('Patient not found. Use "Enter Manually" for unregistered patients.');
+    } finally {
+      setLoadingPharmacies(false);
+    }
+  };
+
+  const selectPatient = async (p) => {
+    setPatient(p);
+    setResults([]);
+    await loadPharmacies(p);
+    toast.success(`Patient selected: ${p.full_name}`);
+  };
+
+  const searchPatient = async () => {
+    setSearching(true);
+    setPatient(null);
+    setResults([]);
+    try {
+      let url;
+      if (searchType === 'quick') {
+        const q = searchFields.q.trim();
+        if (!q) { toast.error('Enter a name, NIC, mobile, or date of birth'); setSearching(false); return; }
+        url = `/patients/search?q=${encodeURIComponent(q)}`;
+      } else {
+        // Advanced: build field params
+        const parts = [];
+        if (searchFields.name.trim())   parts.push(`name=${encodeURIComponent(searchFields.name.trim())}`);
+        if (searchFields.dob.trim())    parts.push(`dob=${encodeURIComponent(searchFields.dob.trim())}`);
+        if (searchFields.mobile.trim()) parts.push(`mobile=${encodeURIComponent(searchFields.mobile.trim())}`);
+        if (!parts.length) { toast.error('Fill at least one search field'); setSearching(false); return; }
+        url = `/patients/search?${parts.join('&')}`;
+      }
+
+      const { data } = await api.get(url);
+
+      if (data.multiple && data.results?.length > 1) {
+        // Show list to pick from
+        setResults(data.results);
+        toast.success(`${data.results.length} patients found — select one below`);
+      } else {
+        // Single match — auto-select
+        await selectPatient(data.data);
+      }
+    } catch (err) {
+      const msg = err.response?.data?.message || 'No patient found';
+      toast.error(msg + '. Use "Enter Manually" for unregistered patients.');
       setPatient(null);
-      setPharmacies([]);
+      setResults([]);
     } finally {
       setSearching(false);
     }
@@ -94,33 +158,18 @@ export default function NewPrescription() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    if (mode === 'search' && !patient) {
-      return toast.error('Please search and select a patient first');
-    }
-    if (mode === 'manual' && !manual.name.trim()) {
-      return toast.error('Patient name is required');
-    }
-    if (medicines.some(m => !m.medicine_name || !m.dosage)) {
-      return toast.error('Fill in medicine name and dosage for all medicines');
-    }
+    if (mode === 'search' && !patient) return toast.error('Please search and select a patient first');
+    if (mode === 'manual' && !manual.name.trim()) return toast.error('Patient name is required');
+    if (medicines.some(m => !m.medicine_name || !m.dosage)) return toast.error('Fill in medicine name and dosage for all medicines');
 
     setLoading(true);
     try {
-      const payload = {
-        pharmacy_id: pharmacyId || null,
-        diagnosis,
-        notes,
-        valid_days: validDays,
-        medicines,
-      };
-
+      const payload = { pharmacy_id: pharmacyId || null, diagnosis, notes, valid_days: validDays, medicines };
       if (mode === 'search') {
-        payload.patient_nic = patientNic;
+        payload.patient_nic = patient.nic || patient.mobile;
       } else {
         payload.manual_patient = manual;
       }
-
       const { data } = await api.post('/prescriptions', payload);
       toast.success('Prescription created!');
       navigate(`/doctor/prescription/${data.data.prescription.id}`);
@@ -139,84 +188,128 @@ export default function NewPrescription() {
 
         {/* ── Patient Section ── */}
         <div className="card p-4 sm:p-6">
-          <div className="flex items-center justify-between mb-4">
+          {/* Header + mode toggle */}
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
             <h2 className="font-semibold text-gray-900">Patient</h2>
-            {/* Toggle buttons */}
             <div className="flex rounded-lg border border-gray-200 overflow-hidden text-sm">
-              <button
-                type="button"
-                onClick={() => switchMode('search')}
+              <button type="button" onClick={() => switchMode('search')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 transition-colors ${
-                  mode === 'search'
-                    ? 'bg-brand-600 text-white'
-                    : 'bg-white text-gray-500 hover:bg-gray-50'
-                }`}
-              >
-                <UserCheck className="w-3.5 h-3.5" />
-                Search Registered
+                  mode === 'search' ? 'bg-brand-600 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}>
+                <UserCheck className="w-3.5 h-3.5" /> Search Registered
               </button>
-              <button
-                type="button"
-                onClick={() => switchMode('manual')}
+              <button type="button" onClick={() => switchMode('manual')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 transition-colors border-l border-gray-200 ${
-                  mode === 'manual'
-                    ? 'bg-amber-500 text-white'
-                    : 'bg-white text-gray-500 hover:bg-gray-50'
-                }`}
-              >
-                <UserX className="w-3.5 h-3.5" />
-                Enter Manually
+                  mode === 'manual' ? 'bg-amber-500 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}>
+                <UserX className="w-3.5 h-3.5" /> Enter Manually
               </button>
             </div>
           </div>
 
           {/* ── Search Mode ── */}
-          {mode === 'search' && (
+          {mode === 'search' && !patient && (
             <>
-              <div className="flex gap-2">
-                <input
-                  className="input"
-                  placeholder="Enter patient NIC or mobile number"
-                  value={patientNic}
-                  onChange={e => setPatientNic(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), searchPatient())}
-                />
-                <button type="button" onClick={searchPatient} disabled={searching}
-                  className="btn-secondary flex items-center gap-2 whitespace-nowrap">
-                  <Search className="w-4 h-4" />
-                  {searching ? 'Searching...' : 'Search'}
+              {/* Quick / Advanced toggle */}
+              <div className="flex gap-3 mb-3 text-sm">
+                <button type="button"
+                  onClick={() => setSearchType('quick')}
+                  className={`px-3 py-1 rounded-full border transition-colors ${
+                    searchType === 'quick'
+                      ? 'bg-brand-50 border-brand-300 text-brand-700 font-medium'
+                      : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
+                  🔍 Quick Search
+                </button>
+                <button type="button"
+                  onClick={() => setSearchType('advanced')}
+                  className={`px-3 py-1 rounded-full border transition-colors ${
+                    searchType === 'advanced'
+                      ? 'bg-brand-50 border-brand-300 text-brand-700 font-medium'
+                      : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
+                  🎯 Advanced Search
                 </button>
               </div>
 
-              {patient && (
-                <div className="mt-3 p-3 bg-green-50 rounded-lg border border-green-100 text-sm space-y-1">
-                  <p className="font-medium text-green-800">{patient.full_name}</p>
-                  <p className="text-green-600">
-                    NIC: {patient.nic} · {patient.gender} ·
-                    DOB: {patient.date_of_birth ? format(new Date(patient.date_of_birth), 'dd MMM yyyy') : '—'}
-                  </p>
-                  {patient.district && (
-                    <p className="text-green-700 flex items-center gap-1">
-                      <MapPin className="w-3 h-3" />
-                      {patient.city ? `${patient.city}, ` : ''}{patient.district} District
-                    </p>
-                  )}
-                  {patient.allergies && (
-                    <p className="text-red-600 font-medium">⚠ Allergies: {patient.allergies}</p>
-                  )}
+              {/* Quick Search */}
+              {searchType === 'quick' && (
+                <div className="flex gap-2">
+                  <input className="input" placeholder="Name, NIC, mobile number, or date of birth (YYYY-MM-DD)"
+                    value={searchFields.q}
+                    onChange={e => setSF('q', e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), searchPatient())} />
+                  <button type="button" onClick={searchPatient} disabled={searching}
+                    className="btn-secondary flex items-center gap-2 whitespace-nowrap">
+                    <Search className="w-4 h-4" />
+                    {searching ? 'Searching...' : 'Search'}
+                  </button>
                 </div>
               )}
 
-              {!patient && (
-                <p className="mt-2 text-xs text-gray-400">
-                  Patient not in the system?{' '}
-                  <button type="button" className="text-amber-600 underline hover:text-amber-700"
-                    onClick={() => switchMode('manual')}>
-                    Enter details manually →
+              {/* Advanced Search */}
+              {searchType === 'advanced' && (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="label">Patient Name</label>
+                      <input className="input" placeholder="e.g. Suhesan"
+                        value={searchFields.name} onChange={e => setSF('name', e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), searchPatient())} />
+                    </div>
+                    <div>
+                      <label className="label">Date of Birth</label>
+                      <input className="input" type="date"
+                        value={searchFields.dob} onChange={e => setSF('dob', e.target.value)} />
+                    </div>
+                    <div>
+                      <label className="label">Mobile Number</label>
+                      <input className="input" placeholder="07XXXXXXXX" type="tel"
+                        value={searchFields.mobile} onChange={e => setSF('mobile', e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), searchPatient())} />
+                    </div>
+                  </div>
+                  <button type="button" onClick={searchPatient} disabled={searching}
+                    className="btn-secondary flex items-center gap-2">
+                    <Search className="w-4 h-4" />
+                    {searching ? 'Searching...' : 'Search Patient'}
                   </button>
-                </p>
+                </div>
+              )}
+
+              <p className="mt-2 text-xs text-gray-400">
+                Patient not in the system?{' '}
+                <button type="button" className="text-amber-600 underline hover:text-amber-700"
+                  onClick={() => switchMode('manual')}>
+                  Enter details manually →
+                </button>
+              </p>
+
+              {/* Multiple results list */}
+              {results.length > 1 && (
+                <div className="mt-3 border border-gray-200 rounded-lg overflow-hidden">
+                  <div className="bg-gray-50 px-3 py-2 text-xs text-gray-500 font-medium border-b border-gray-200">
+                    {results.length} patients found — tap to select
+                  </div>
+                  {results.map((r, i) => (
+                    <button key={r.id} type="button" onClick={() => selectPatient(r)}
+                      className="w-full text-left px-4 py-3 hover:bg-brand-50 border-b border-gray-100 last:border-0 transition-colors flex items-center justify-between gap-3">
+                      <div>
+                        <p className="font-medium text-gray-800 text-sm">{r.full_name}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          {r.nic && <>NIC: {r.nic}</>}
+                          {r.mobile && <> · 📞 {r.mobile}</>}
+                          {r.date_of_birth && <> · DOB: {format(new Date(r.date_of_birth), 'dd MMM yyyy')}</>}
+                          {r.district && <> · {r.district}</>}
+                        </p>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-gray-400 shrink-0" />
+                    </button>
+                  ))}
+                </div>
               )}
             </>
+          )}
+
+          {/* Selected patient card */}
+          {mode === 'search' && patient && (
+            <PatientCard patient={patient} onClear={() => { setPatient(null); setResults([]); setPharmacies([]); }} />
           )}
 
           {/* ── Manual Mode ── */}
@@ -224,17 +317,13 @@ export default function NewPrescription() {
             <div className="space-y-3">
               <div className="flex items-start gap-2 p-3 bg-amber-50 rounded-lg border border-amber-100 text-sm text-amber-800">
                 <UserX className="w-4 h-4 mt-0.5 shrink-0 text-amber-500" />
-                <span>
-                  For walk-in or unregistered patients. Only <strong>Name</strong> is required —
-                  other fields are optional but help the pharmacist.
-                </span>
+                <span>For walk-in or unregistered patients. Only <strong>Name</strong> is required.</span>
               </div>
-
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="sm:col-span-2">
                   <label className="label">Patient Full Name *</label>
                   <input className="input" placeholder="e.g. Suhesan Arumugam"
-                    value={manual.name} onChange={e => setManualField('name', e.target.value)} required={mode === 'manual'} />
+                    value={manual.name} onChange={e => setManualField('name', e.target.value)} />
                 </div>
                 <div>
                   <label className="label">NIC Number <span className="text-gray-400 font-normal">(optional)</span></label>
@@ -265,14 +354,14 @@ export default function NewPrescription() {
           )}
         </div>
 
-        {/* ── Pharmacy (search mode only, shown after patient found) ── */}
+        {/* ── Pharmacy (only when registered patient selected) ── */}
         {mode === 'search' && patient && (
           <div className="card p-4 sm:p-6">
             <div className="flex items-center justify-between mb-1">
               <h2 className="font-semibold">Pharmacy</h2>
               {patient.district && (
                 <span className="text-xs text-brand-600 bg-brand-50 px-2 py-0.5 rounded-full flex items-center gap-1">
-                  <MapPin className="w-3 h-3" /> Nearby — {patient.district} district
+                  <MapPin className="w-3 h-3" /> Nearby — {patient.district}
                 </span>
               )}
             </div>
@@ -280,7 +369,7 @@ export default function NewPrescription() {
               <div className="input text-gray-400 text-sm">Loading nearby pharmacies...</div>
             ) : pharmacies.length === 0 ? (
               <div className="bg-amber-50 border border-amber-100 rounded-lg p-3 text-sm text-amber-700">
-                No approved pharmacies found in <strong>{patient.district}</strong> district.
+                No approved pharmacies found{patient.district ? ` in ${patient.district} district` : ''}.
               </div>
             ) : (
               <>
@@ -294,7 +383,7 @@ export default function NewPrescription() {
                   ))}
                 </select>
                 <p className="text-xs text-gray-400 mt-1">
-                  {pharmacies.length} approved pharmacy{pharmacies.length !== 1 ? 's' : ''} near patient
+                  {pharmacies.length} pharmacy{pharmacies.length !== 1 ? 's' : ''} near patient · You can also send later
                 </p>
               </>
             )}
@@ -310,17 +399,15 @@ export default function NewPrescription() {
               <input className="input" placeholder="e.g. Type 2 Diabetes Mellitus"
                 value={diagnosis} onChange={e => setDiagnosis(e.target.value)} />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="label">Valid for (days)</label>
-                <select className="input" value={validDays} onChange={e => setValidDays(Number(e.target.value))}>
-                  <option value={7}>7 days</option>
-                  <option value={14}>14 days</option>
-                  <option value={30}>30 days</option>
-                  <option value={60}>60 days</option>
-                  <option value={90}>90 days</option>
-                </select>
-              </div>
+            <div>
+              <label className="label">Valid for (days)</label>
+              <select className="input w-48" value={validDays} onChange={e => setValidDays(Number(e.target.value))}>
+                <option value={7}>7 days</option>
+                <option value={14}>14 days</option>
+                <option value={30}>30 days</option>
+                <option value={60}>60 days</option>
+                <option value={90}>90 days</option>
+              </select>
             </div>
             <div>
               <label className="label">Notes</label>
