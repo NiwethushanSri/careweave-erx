@@ -20,6 +20,8 @@ import PharmacyDashboard from './pages/pharmacy/Dashboard';
 import PatientDashboard from './pages/patient/Dashboard';
 import AdminDashboard from './pages/admin/Dashboard';
 import Analytics from './pages/admin/Analytics';
+import DoctorProfile from './pages/doctor/Profile';
+import PharmacyProfile from './pages/pharmacy/Profile';
 import UserGuide from './pages/info/UserGuide';
 import TermsAndConditions from './pages/info/TermsAndConditions';
 import PrivacyPolicy from './pages/info/PrivacyPolicy';
@@ -53,11 +55,13 @@ function AppRoutes() {
 
       <Route path="/doctor" element={<ProtectedRoute allowedRoles={['doctor']}><DoctorDashboard /></ProtectedRoute>} />
       <Route path="/doctor/new-prescription" element={<ProtectedRoute allowedRoles={['doctor']}><NewPrescription /></ProtectedRoute>} />
+      <Route path="/doctor/profile" element={<ProtectedRoute allowedRoles={['doctor']}><DoctorProfile /></ProtectedRoute>} />
       <Route path="/doctor/prescription/:id" element={<ProtectedRoute allowedRoles={['doctor','pharmacy','patient']}><PrescriptionDetail /></ProtectedRoute>} />
       <Route path="/prescription/:id/pdf" element={<ProtectedRoute allowedRoles={['doctor','pharmacy','patient','admin']}><PrescriptionPDF /></ProtectedRoute>} />
       <Route path="/prescription/:id/invoice" element={<ProtectedRoute allowedRoles={['pharmacy','admin']}><Invoice /></ProtectedRoute>} />
 
       <Route path="/pharmacy/analytics" element={<ProtectedRoute allowedRoles={['pharmacy']}><PharmacyAnalytics /></ProtectedRoute>} />
+      <Route path="/pharmacy/profile" element={<ProtectedRoute allowedRoles={['pharmacy']}><PharmacyProfile /></ProtectedRoute>} />
       <Route path="/pharmacy" element={<ProtectedRoute allowedRoles={['pharmacy']}><PharmacyDashboard /></ProtectedRoute>} />
 
       <Route path="/patient/tracker" element={<ProtectedRoute allowedRoles={['patient']}><PrescriptionTracker /></ProtectedRoute>} />

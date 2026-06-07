@@ -138,6 +138,95 @@ router.patch('/notifications/:id/read', authenticate, async (req, res) => {
 });
 
 // ========================
+// PROFILE ROUTES
+// ========================
+
+// GET doctor profile
+router.get('/profile/doctor', authenticate, authorize('doctor'), async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT u.full_name, u.email, u.mobile, u.nic,
+              d.slmc_number, d.specialisation, d.qualification, d.clinic_name,
+              d.clinic_address, d.clinic_phone, d.experience_years, d.about
+       FROM doctors d JOIN users u ON u.id = d.user_id
+       WHERE d.user_id = $1`,
+      [req.user.id]
+    );
+    if (!result.rows[0]) return res.status(404).json({ success: false, message: 'Profile not found' });
+    res.json({ success: true, data: result.rows[0] });
+  } catch (err) { res.status(500).json({ success: false, message: 'Failed' }); }
+});
+
+// PATCH doctor profile (safe fields only — cannot change NIC or SLMC)
+router.patch('/profile/doctor', authenticate, authorize('doctor'), async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { full_name, email, mobile, specialisation, qualification,
+            clinic_name, clinic_address, clinic_phone, experience_years, about } = req.body;
+
+    // Update users table
+    await client.query(
+      `UPDATE users SET full_name=$1, email=$2, mobile=$3 WHERE id=$4`,
+      [full_name, email, mobile, req.user.id]
+    );
+    // Update doctors table
+    await client.query(
+      `UPDATE doctors SET specialisation=$1, qualification=$2, clinic_name=$3,
+              clinic_address=$4, clinic_phone=$5, experience_years=$6, about=$7
+       WHERE user_id=$8`,
+      [specialisation, qualification, clinic_name, clinic_address, clinic_phone,
+       experience_years || null, about, req.user.id]
+    );
+    await client.query('COMMIT');
+    res.json({ success: true, message: 'Profile updated successfully' });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ success: false, message: 'Failed to update profile' });
+  } finally { client.release(); }
+});
+
+// GET pharmacy profile
+router.get('/profile/pharmacy', authenticate, authorize('pharmacy'), async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT u.full_name, u.email, u.mobile, u.nic,
+              ph.pharmacy_name, ph.licence_number, ph.address, ph.city, ph.district,
+              ph.phone, ph.operating_hours, ph.gps_lat, ph.gps_lng
+       FROM pharmacies ph JOIN users u ON u.id = ph.user_id
+       WHERE ph.user_id = $1`,
+      [req.user.id]
+    );
+    if (!result.rows[0]) return res.status(404).json({ success: false, message: 'Profile not found' });
+    res.json({ success: true, data: result.rows[0] });
+  } catch (err) { res.status(500).json({ success: false, message: 'Failed' }); }
+});
+
+// PATCH pharmacy profile (cannot change licence_number)
+router.patch('/profile/pharmacy', authenticate, authorize('pharmacy'), async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { full_name, email, mobile, pharmacy_name, address, city, district, phone, operating_hours } = req.body;
+
+    await client.query(
+      `UPDATE users SET full_name=$1, email=$2, mobile=$3 WHERE id=$4`,
+      [full_name, email, mobile, req.user.id]
+    );
+    await client.query(
+      `UPDATE pharmacies SET pharmacy_name=$1, address=$2, city=$3, district=$4, phone=$5, operating_hours=$6
+       WHERE user_id=$7`,
+      [pharmacy_name, address, city, district, phone, operating_hours, req.user.id]
+    );
+    await client.query('COMMIT');
+    res.json({ success: true, message: 'Profile updated successfully' });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ success: false, message: 'Failed to update profile' });
+  } finally { client.release(); }
+});
+
+// ========================
 // ADMIN ROUTES
 // ========================
 router.get('/admin/dashboard', authenticate, authorize('admin'), adminCtrl.getDashboard);

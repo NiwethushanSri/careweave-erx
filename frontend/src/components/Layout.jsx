@@ -1,6 +1,6 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { LogOut, FileText, LayoutDashboard, Plus, Shield, Package, BarChart2, Menu, X } from 'lucide-react';
+import { LogOut, FileText, LayoutDashboard, Plus, Shield, Package, BarChart2, Menu, X, UserCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useState } from 'react';
 
@@ -8,10 +8,12 @@ const navByRole = {
   doctor: [
     { to: '/doctor', label: 'Dashboard', icon: LayoutDashboard },
     { to: '/doctor/new-prescription', label: 'New Rx', icon: Plus },
+    { to: '/doctor/profile', label: 'My Profile', icon: UserCircle },
   ],
   pharmacy: [
     { to: '/pharmacy', label: 'Dashboard', icon: Package },
     { to: '/pharmacy/analytics', label: 'Analytics', icon: BarChart2 },
+    { to: '/pharmacy/profile', label: 'My Profile', icon: UserCircle },
   ],
   patient: [
     { to: '/patient', label: 'My Prescriptions', icon: FileText },
