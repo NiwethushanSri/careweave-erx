@@ -23,118 +23,189 @@ export default function PrescriptionPDF() {
   if (loading) return <div className="p-8 text-center text-gray-400">Loading...</div>;
   if (!prescription) return <div className="p-8 text-center text-gray-400">Not found</div>;
 
+  const wi = prescription.walk_in_patient;
+  const patientName   = wi ? wi.name  : prescription.patient_name;
+  const patientNic    = wi ? wi.nic   : prescription.patient_nic;
+  const patientMobile = wi ? wi.mobile: prescription.patient_mobile;
+
   return (
     <div>
-      {/* Print controls - hidden when printing */}
-      <div className="print:hidden p-4 flex items-center gap-3 border-b border-gray-100 bg-white">
-        <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-gray-500 hover:text-gray-700 text-sm">
+      {/* Print controls — hidden when printing */}
+      <div className="print:hidden p-4 flex items-center gap-3 border-b border-gray-100 bg-white sticky top-0 z-10">
+        <button onClick={() => navigate(-1)}
+          className="flex items-center gap-2 text-gray-500 hover:text-gray-700 text-sm">
           <ArrowLeft className="w-4 h-4" /> Back
         </button>
-        <button onClick={handlePrint} className="btn-primary flex items-center gap-2 text-sm ml-auto">
+        <button onClick={handlePrint}
+          className="btn-primary flex items-center gap-2 text-sm ml-auto">
           <Download className="w-4 h-4" /> Download / Print PDF
         </button>
       </div>
 
       {/* PDF Content */}
-      <div className="max-w-2xl mx-auto p-8 bg-white" id="prescription-pdf">
-        {/* Header */}
-        <div className="border-b-2 border-green-600 pb-4 mb-6">
-          <div className="flex items-center justify-between">
+      <div className="max-w-2xl mx-auto px-4 py-6 sm:p-8 bg-white" id="prescription-pdf">
+
+        {/* ── Header ───────────────────────────────────────────── */}
+        <div className="border-b-2 border-green-600 pb-4 mb-5">
+          <div className="flex items-start justify-between gap-3 flex-wrap">
             <div>
-              <h1 className="text-2xl font-bold text-green-700">CareWeave eRx</h1>
-              <p className="text-sm text-gray-500">Ministry of Health Sri Lanka · Digital Prescription Platform</p>
+              <h1 className="text-xl sm:text-2xl font-bold text-green-700">CareWeave eRx</h1>
+              <p className="text-xs text-gray-500">Ministry of Health Sri Lanka · Digital Prescription Platform</p>
             </div>
             <div className="text-right">
               <p className="text-xs text-gray-400">Prescription Code</p>
-              <p className="text-lg font-mono font-bold text-green-700">{prescription.prescription_code}</p>
+              <p className="text-base sm:text-lg font-mono font-bold text-green-700 break-all">
+                {prescription.prescription_code}
+              </p>
               <span className={`inline-block text-xs px-2 py-0.5 rounded-full font-medium mt-1 ${
                 prescription.status === 'dispensed' ? 'bg-green-100 text-green-700' :
-                prescription.status === 'sent' ? 'bg-blue-100 text-blue-700' :
+                prescription.status === 'sent'      ? 'bg-blue-100 text-blue-700' :
                 'bg-yellow-100 text-yellow-700'
               }`}>{prescription.status.toUpperCase()}</span>
             </div>
           </div>
         </div>
 
-        {/* Doctor & Patient */}
-        <div className="grid grid-cols-2 gap-6 mb-6">
-          <div className="border border-gray-200 rounded-lg p-4">
+        {/* ── Doctor & Patient ─────────────────────────────────── */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
+          <div className="border border-gray-200 rounded-lg p-3 sm:p-4">
             <h3 className="text-xs font-semibold text-gray-400 uppercase mb-2">Prescribing Doctor</h3>
-            <p className="font-semibold">Dr. {prescription.doctor_name}</p>
-            <p className="text-sm text-gray-600">SLMC: {prescription.slmc_number}</p>
-            {prescription.specialisation && <p className="text-sm text-gray-600">{prescription.specialisation}</p>}
-            {prescription.clinic_name && <p className="text-sm text-gray-600">{prescription.clinic_name}</p>}
+            <p className="font-semibold text-sm">Dr. {prescription.doctor_name}</p>
+            <p className="text-xs text-gray-600">SLMC: {prescription.slmc_number}</p>
+            {prescription.specialisation && <p className="text-xs text-gray-600">{prescription.specialisation}</p>}
+            {prescription.clinic_name && <p className="text-xs text-gray-600">{prescription.clinic_name}</p>}
           </div>
-          <div className="border border-gray-200 rounded-lg p-4">
-            <h3 className="text-xs font-semibold text-gray-400 uppercase mb-2">Patient</h3>
-            <p className="font-semibold">{prescription.patient_name}</p>
-            <p className="text-sm text-gray-600">NIC: {prescription.patient_nic}</p>
-            {prescription.patient_mobile && <p className="text-sm text-gray-600">Mobile: {prescription.patient_mobile}</p>}
+          <div className="border border-gray-200 rounded-lg p-3 sm:p-4">
+            <h3 className="text-xs font-semibold text-gray-400 uppercase mb-2">
+              Patient {wi && <span className="text-amber-500">(Walk-in)</span>}
+            </h3>
+            <p className="font-semibold text-sm">{patientName || '—'}</p>
+            {patientNic    && <p className="text-xs text-gray-600">NIC: {patientNic}</p>}
+            {patientMobile && <p className="text-xs text-gray-600">Mobile: {patientMobile}</p>}
           </div>
         </div>
 
-        {/* Clinical */}
-        <div className="border border-gray-200 rounded-lg p-4 mb-6">
+        {/* ── Clinical Details ─────────────────────────────────── */}
+        <div className="border border-gray-200 rounded-lg p-3 sm:p-4 mb-5">
           <h3 className="text-xs font-semibold text-gray-400 uppercase mb-2">Clinical Details</h3>
-          <div className="grid grid-cols-2 gap-2 text-sm">
-            {prescription.diagnosis && <div><span className="text-gray-500">Diagnosis:</span> <span className="font-medium">{prescription.diagnosis}</span></div>}
-            <div><span className="text-gray-500">Date:</span> {format(new Date(prescription.created_at), 'dd MMM yyyy')}</div>
-            <div><span className="text-gray-500">Valid until:</span> {format(new Date(prescription.valid_until), 'dd MMM yyyy')}</div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-xs sm:text-sm">
+            {prescription.diagnosis && (
+              <div>
+                <span className="text-gray-500">Diagnosis: </span>
+                <span className="font-medium">{prescription.diagnosis}</span>
+              </div>
+            )}
+            <div><span className="text-gray-500">Date: </span>{format(new Date(prescription.created_at), 'dd MMM yyyy')}</div>
+            <div><span className="text-gray-500">Valid until: </span>{format(new Date(prescription.valid_until), 'dd MMM yyyy')}</div>
           </div>
-          {prescription.notes && <p className="text-sm text-gray-600 mt-2 italic">"{prescription.notes}"</p>}
+          {prescription.notes && (
+            <p className="text-xs sm:text-sm text-gray-600 mt-2 italic">"{prescription.notes}"</p>
+          )}
         </div>
 
-        {/* Medicines */}
-        <div className="mb-6">
+        {/* ── Medicines ────────────────────────────────────────── */}
+        <div className="mb-5">
           <h3 className="text-xs font-semibold text-gray-400 uppercase mb-3">Prescribed Medicines</h3>
-          <table className="w-full text-sm border border-gray-200 rounded-lg overflow-hidden">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="text-left p-3 font-medium text-gray-600">#</th>
-                <th className="text-left p-3 font-medium text-gray-600">Medicine</th>
-                <th className="text-left p-3 font-medium text-gray-600">Dosage</th>
-                <th className="text-left p-3 font-medium text-gray-600">Qty</th>
-                <th className="text-left p-3 font-medium text-gray-600">Frequency</th>
-                <th className="text-left p-3 font-medium text-gray-600">Instructions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {prescription.medicines?.map((med, i) => (
-                <tr key={i} className="border-t border-gray-100">
-                  <td className="p-3 text-gray-500">{i + 1}</td>
-                  <td className="p-3 font-medium">{med.medicine_name}</td>
-                  <td className="p-3">{med.dosage}</td>
-                  <td className="p-3">{med.quantity}</td>
-                  <td className="p-3 text-gray-600">{med.frequency || '—'}</td>
-                  <td className="p-3 text-gray-600">{med.instructions || '—'}</td>
+
+          {/* Mobile: stacked cards (hidden when printing) */}
+          <div className="sm:hidden print:hidden space-y-3">
+            {prescription.medicines?.map((med, i) => (
+              <div key={i} className="border border-gray-200 rounded-xl p-3 bg-gray-50">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-full bg-green-100 text-green-700 text-xs font-bold flex items-center justify-center shrink-0">
+                      {i + 1}
+                    </span>
+                    <p className="font-semibold text-sm text-gray-900">{med.medicine_name}</p>
+                  </div>
+                  <span className="text-sm font-bold text-green-700 bg-green-50 px-2 py-0.5 rounded-lg shrink-0">
+                    {med.dosage}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs mt-2">
+                  <div className="bg-white rounded-lg p-2 border border-gray-100">
+                    <p className="text-gray-400">Quantity</p>
+                    <p className="font-semibold text-gray-800 mt-0.5">{med.quantity} tablet{med.quantity > 1 ? 's' : ''}</p>
+                  </div>
+                  <div className="bg-white rounded-lg p-2 border border-gray-100">
+                    <p className="text-gray-400">Frequency</p>
+                    <p className="font-semibold text-gray-800 mt-0.5">{med.frequency || '—'}</p>
+                  </div>
+                  {med.duration && (
+                    <div className="bg-white rounded-lg p-2 border border-gray-100">
+                      <p className="text-gray-400">Duration</p>
+                      <p className="font-semibold text-gray-800 mt-0.5">{med.duration}</p>
+                    </div>
+                  )}
+                  {med.instructions && (
+                    <div className="bg-green-50 rounded-lg p-2 border border-green-100 col-span-2">
+                      <p className="text-green-500">Instructions</p>
+                      <p className="font-medium text-green-800 mt-0.5">{med.instructions}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop + Print: table */}
+          <div className="hidden sm:block print:block">
+            <table className="w-full text-sm border border-gray-200 rounded-lg overflow-hidden">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="text-left p-3 font-medium text-gray-600 w-8">#</th>
+                  <th className="text-left p-3 font-medium text-gray-600">Medicine</th>
+                  <th className="text-left p-3 font-medium text-gray-600">Dosage</th>
+                  <th className="text-left p-3 font-medium text-gray-600">Qty</th>
+                  <th className="text-left p-3 font-medium text-gray-600">Frequency</th>
+                  <th className="text-left p-3 font-medium text-gray-600">Instructions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {prescription.medicines?.map((med, i) => (
+                  <tr key={i} className="border-t border-gray-100">
+                    <td className="p-3 text-gray-500">{i + 1}</td>
+                    <td className="p-3 font-medium">{med.medicine_name}</td>
+                    <td className="p-3">{med.dosage}</td>
+                    <td className="p-3">{med.quantity}</td>
+                    <td className="p-3 text-gray-600">{med.frequency || '—'}</td>
+                    <td className="p-3 text-gray-600">{med.instructions || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
 
-        {/* QR + Pharmacy */}
-        <div className="grid grid-cols-2 gap-6 mb-6">
+        {/* ── QR + Pharmacy ────────────────────────────────────── */}
+        <div className="grid grid-cols-2 gap-3 sm:gap-6 mb-5">
           {prescription.qr_code && (
-            <div className="border border-gray-200 rounded-lg p-4 text-center">
+            <div className="border border-gray-200 rounded-lg p-3 sm:p-4 text-center">
               <h3 className="text-xs font-semibold text-gray-400 uppercase mb-2">Verification QR</h3>
-              <img src={prescription.qr_code} alt="QR" className="w-32 h-32 mx-auto" />
+              <img src={prescription.qr_code} alt="QR"
+                className="w-24 h-24 sm:w-32 sm:h-32 mx-auto" />
             </div>
           )}
           {prescription.pharmacy_name && (
-            <div className="border border-gray-200 rounded-lg p-4">
+            <div className="border border-gray-200 rounded-lg p-3 sm:p-4">
               <h3 className="text-xs font-semibold text-gray-400 uppercase mb-2">Dispensing Pharmacy</h3>
-              <p className="font-medium">{prescription.pharmacy_name}</p>
-              {prescription.pharmacy_address && <p className="text-sm text-gray-600">{prescription.pharmacy_address}</p>}
-              {prescription.dispensed_at && <p className="text-sm text-green-600 mt-1">Dispensed: {format(new Date(prescription.dispensed_at), 'dd MMM yyyy HH:mm')}</p>}
+              <p className="font-medium text-sm">{prescription.pharmacy_name}</p>
+              {prescription.pharmacy_address && (
+                <p className="text-xs text-gray-600 mt-0.5">{prescription.pharmacy_address}</p>
+              )}
+              {prescription.dispensed_at && (
+                <p className="text-xs text-green-600 mt-1 font-medium">
+                  Dispensed: {format(new Date(prescription.dispensed_at), 'dd MMM yyyy HH:mm')}
+                </p>
+              )}
             </div>
           )}
         </div>
 
-        {/* Footer */}
+        {/* ── Footer ───────────────────────────────────────────── */}
         <div className="border-t border-gray-200 pt-4 text-center">
           <p className="text-xs text-gray-400">This is a digitally verified prescription generated by CareWeave eRx</p>
-          <p className="text-xs text-gray-400">Ministry of Health Sri Lanka · {prescription.prescription_code}</p>
+          <p className="text-xs text-gray-400">careweave-erx.vercel.app · Ministry of Health Sri Lanka · {prescription.prescription_code}</p>
         </div>
       </div>
 
@@ -142,7 +213,7 @@ export default function PrescriptionPDF() {
         @media print {
           body * { visibility: hidden; }
           #prescription-pdf, #prescription-pdf * { visibility: visible; }
-          #prescription-pdf { position: absolute; left: 0; top: 0; width: 100%; }
+          #prescription-pdf { position: absolute; left: 0; top: 0; width: 100%; padding: 20px; }
         }
       `}</style>
     </div>
