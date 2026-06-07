@@ -70,7 +70,7 @@ export default function PatientSummaryPDF() {
           <div className="flex items-start justify-between">
             <div>
               <h1 className="text-2xl font-bold text-green-700">Patient Health Summary</h1>
-              <p className="text-sm text-gray-500">RxSystem SL · Ministry of Health Sri Lanka</p>
+              <p className="text-sm text-gray-500">CareWeave eRx · Ministry of Health Sri Lanka</p>
             </div>
             <div className="text-right">
               <p className="text-xs text-gray-400">Generated on</p>

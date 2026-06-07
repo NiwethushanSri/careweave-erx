@@ -163,7 +163,7 @@ export default function Invoice() {
 
         {/* Footer */}
         <div className="border-t border-gray-200 pt-4 flex items-center justify-between text-xs text-gray-400">
-          <p>RxSystem SL · Digital Prescription Platform</p>
+          <p>CareWeave eRx · Digital Prescription Platform</p>
           <p>Developed by Niwethushan · Forge9x</p>
         </div>
       </div>

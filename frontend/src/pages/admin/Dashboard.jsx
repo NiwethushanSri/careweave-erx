@@ -41,7 +41,7 @@ export default function AdminDashboard() {
         </div>
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Government Admin Portal</h1>
-          <p className="text-gray-500 text-sm">RxSystem SL — System Management</p>
+          <p className="text-gray-500 text-sm">CareWeave eRx — System Management</p>
         </div>
       </div>
 
