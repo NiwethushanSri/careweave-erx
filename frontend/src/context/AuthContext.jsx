@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import api from '../utils/api';
 
 const AuthContext = createContext(null);
@@ -7,6 +7,18 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(() => {
     try { return JSON.parse(localStorage.getItem('rxuser')); } catch { return null; }
   });
+
+  // On startup: if we have a token, silently refresh user from server
+  // so localStorage never shows stale name/email
+  useEffect(() => {
+    const token = localStorage.getItem('rxtoken');
+    if (!token) return;
+    api.get('/auth/me').then(({ data }) => {
+      const fresh = data.data;
+      localStorage.setItem('rxuser', JSON.stringify(fresh));
+      setUser(fresh);
+    }).catch(() => {});
+  }, []);
 
   const login = useCallback(async (identifier, password) => {
     const { data } = await api.post('/auth/login', { identifier, password });
