@@ -18,8 +18,8 @@ const MOTIVATIONAL = [
   { emoji: '❤️', msg: "Your health matters — and so do you!", sub: "We're cheering for your speedy recovery." },
 ];
 
-function MotivationalPopup({ onClose }) {
-  const msg = MOTIVATIONAL[Math.floor(Math.random() * MOTIVATIONAL.length)];
+function MotivationalPopup({ onClose, msgIndex }) {
+  const msg = MOTIVATIONAL[msgIndex % MOTIVATIONAL.length];
   const timerRef = useRef(null);
 
   useEffect(() => {
@@ -287,7 +287,7 @@ export default function TodayMedicines() {
   const [schedule, setSchedule] = useState([]);
   const [loading, setLoading] = useState(true);
   const [stopTarget, setStopTarget] = useState(null);
-  const [showMotivation, setShowMotivation] = useState(false);
+  const [motivationIdx, setMotivationIdx] = useState(null);
   const today = new Date();
 
   const load = useCallback(async () => {
@@ -340,7 +340,9 @@ export default function TodayMedicines() {
   return (
     <div className="space-y-4">
       {/* Motivational popup */}
-      {showMotivation && <MotivationalPopup onClose={() => setShowMotivation(false)} />}
+      {motivationIdx !== null && (
+        <MotivationalPopup msgIndex={motivationIdx} onClose={() => setMotivationIdx(null)} />
+      )}
 
       {/* Stop modal */}
       {stopTarget && (
@@ -424,7 +426,7 @@ export default function TodayMedicines() {
               onLogDose={handleLogDose}
               onUnlog={handleUnlog}
               onStop={setStopTarget}
-              onShowMotivation={() => setShowMotivation(true)}
+              onShowMotivation={() => setMotivationIdx(Math.floor(Math.random() * MOTIVATIONAL.length))}
             />
           ))}
         </div>
