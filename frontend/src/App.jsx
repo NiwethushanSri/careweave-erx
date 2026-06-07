@@ -20,6 +20,9 @@ import PharmacyDashboard from './pages/pharmacy/Dashboard';
 import PatientDashboard from './pages/patient/Dashboard';
 import AdminDashboard from './pages/admin/Dashboard';
 import Analytics from './pages/admin/Analytics';
+import UserGuide from './pages/info/UserGuide';
+import TermsAndConditions from './pages/info/TermsAndConditions';
+import PrivacyPolicy from './pages/info/PrivacyPolicy';
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { user } = useAuth();
@@ -63,6 +66,10 @@ function AppRoutes() {
 
       <Route path="/admin/analytics" element={<ProtectedRoute allowedRoles={['admin']}><Analytics /></ProtectedRoute>} />
       <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>} />
+
+      <Route path="/guide" element={<UserGuide />} />
+      <Route path="/terms" element={<TermsAndConditions />} />
+      <Route path="/privacy" element={<PrivacyPolicy />} />
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

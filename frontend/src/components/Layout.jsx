@@ -111,16 +111,30 @@ export default function Layout({ children }) {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-gray-100 bg-white">
-        <div className="py-3 flex items-center justify-center text-center">
-          <div className="text-xs text-gray-400">
-            Developed by{' '}
-            <span className="font-medium text-gray-600">Niwethushan</span>
-            {' '}·{' '}
-            <a href="https://forge9x.co.uk" target="_blank" rel="noreferrer"
-              className="font-semibold text-brand-600 hover:text-brand-700 transition-colors">
-              Forge9x
-            </a>
+      <footer className="border-t border-gray-100 bg-white mt-auto">
+        <div className="max-w-6xl mx-auto px-4 py-4">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+            {/* Links */}
+            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-x-4 gap-y-1 text-xs text-gray-400">
+              <Link to="/guide" className="hover:text-brand-600 transition-colors">User Guide</Link>
+              <span className="hidden sm:inline text-gray-200">|</span>
+              <Link to="/terms" className="hover:text-brand-600 transition-colors">Terms & Conditions</Link>
+              <span className="hidden sm:inline text-gray-200">|</span>
+              <Link to="/privacy" className="hover:text-brand-600 transition-colors">Privacy Policy</Link>
+              <span className="hidden sm:inline text-gray-200">|</span>
+              <a href="mailto:support@careweave.lk" className="hover:text-brand-600 transition-colors">Support</a>
+            </div>
+            {/* Credit */}
+            <div className="text-xs text-gray-400 text-center sm:text-right">
+              <span>Ministry of Health Sri Lanka · </span>
+              Developed by{' '}
+              <span className="font-medium text-gray-600">Niwethushan</span>
+              {' '}·{' '}
+              <a href="https://forge9x.co.uk" target="_blank" rel="noreferrer"
+                className="font-semibold text-brand-600 hover:text-brand-700 transition-colors">
+                Forge9x
+              </a>
+            </div>
           </div>
         </div>
       </footer>
