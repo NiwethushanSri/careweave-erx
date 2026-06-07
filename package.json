@@ -1,0 +1,12 @@
+{
+  "name": "rxsystem-sl",
+  "version": "1.0.0",
+  "description": "Digital GP-Pharmacy Prescription System - Sri Lanka",
+  "scripts": {
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "install:all": "cd backend && npm install && cd ../frontend && npm install",
+    "migrate": "cd backend && npm run migrate",
+    "seed": "cd backend && npm run seed"
+  }
+}
