@@ -1,4 +1,6 @@
-# RxSystem SL — Digital Prescription Platform
+# CareWeave eRx — Digital Prescription Platform for Sri Lanka
+
+A modern, secure digital prescription platform connecting doctors, patients, and pharmacies across Sri Lanka.
 
 ## Architecture
 - **Backend**: Node.js + Express.js REST API
@@ -12,7 +14,7 @@
 ### 1. Database Setup
 ```bash
 psql -U postgres
-CREATE DATABASE rxsystem_sl;
+CREATE DATABASE careweave_erx;
 \q
 ```
 
@@ -41,7 +43,7 @@ INSERT INTO users (nic, full_name, email, mobile, role, password_hash, is_active
 VALUES (
   '199512345678',
   'System Admin',
-  'admin@rxsystem.lk',
+  'admin@careweave.lk',
   '0771234567',
   'admin',
   '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQyCgJQQHt.6c0Cj.s7xVRWCC', -- password: admin123
@@ -64,25 +66,25 @@ npm install -g pm2
 
 ### PostgreSQL
 ```bash
-sudo -u postgres createdb rxsystem_sl
-sudo -u postgres psql -c "CREATE USER rxuser WITH PASSWORD 'strongpassword';"
-sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE rxsystem_sl TO rxuser;"
+sudo -u postgres createdb careweave_erx
+sudo -u postgres psql -c "CREATE USER careweaveuser WITH PASSWORD 'strongpassword';"
+sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE careweave_erx TO careweaveuser;"
 ```
 
 ### Backend (PM2)
 ```bash
-cd /var/www/rxsystem/backend
+cd /var/www/careweave-erx/backend
 cp .env.example .env  # fill in production values
 npm install
 npm run migrate
-pm2 start src/index.js --name rxsystem-api
+pm2 start src/index.js --name careweave-api
 pm2 save
 pm2 startup
 ```
 
 ### Frontend (Build)
 ```bash
-cd /var/www/rxsystem/frontend
+cd /var/www/careweave-erx/frontend
 npm install
 npm run build   # outputs to dist/
 ```
@@ -95,7 +97,7 @@ server {
 
     # Frontend
     location / {
-        root /var/www/rxsystem/frontend/dist;
+        root /var/www/careweave-erx/frontend/dist;
         try_files $uri $uri/ /index.html;
     }
 
@@ -129,6 +131,8 @@ sudo certbot --nginx -d yourdomain.lk
 | POST | /api/auth/register/pharmacy | Public | Pharmacy registration (pending approval) |
 | POST | /api/auth/login | Public | Login → returns JWT |
 | GET | /api/auth/me | All | Get current user |
+| GET | /api/hospitals | Public | Search hospitals (dropdown) |
+| GET | /api/pharmacies | Public | List approved pharmacies (filterable by district) |
 | GET | /api/prescriptions | Auth | List prescriptions (role-filtered) |
 | POST | /api/prescriptions | Doctor | Create prescription |
 | GET | /api/prescriptions/:id | Auth | View single prescription |
@@ -137,7 +141,6 @@ sudo certbot --nginx -d yourdomain.lk
 | POST | /api/prescriptions/:id/dispense | Pharmacy | Mark dispensed |
 | POST | /api/prescriptions/:id/cancel | Doctor/Admin | Cancel |
 | GET | /api/prescriptions/verify/:code | Public | QR code verification |
-| GET | /api/pharmacies | Auth | List approved pharmacies |
 | GET | /api/patients/search?nic= | Doctor | Find patient by NIC |
 | PATCH | /api/patients/preferred-pharmacy | Patient | Set preferred pharmacy |
 | GET | /api/notifications | Auth | Get notifications |
@@ -164,6 +167,17 @@ Pharmacy Dispenses (status: dispensed)
 
 ---
 
+## Key Features
+- 🏥 265+ Sri Lanka hospitals in doctor registration dropdown
+- 📍 District-based pharmacy filtering for patients & doctors
+- ⭐ Patient preferred pharmacy support
+- 🕐 Time-based greetings with live clock on all dashboards
+- 📄 PDF prescription & patient summary generation
+- 🔍 QR code verification for prescriptions
+- 👨‍⚕️ Doctor & pharmacy approval workflow (admin controlled)
+
+---
+
 ## Security Features
 - JWT authentication with role-based access
 - Rate limiting (100 req/15min, 10 logins/15min)
@@ -178,7 +192,6 @@ Pharmacy Dispenses (status: dispensed)
 ## Next Steps (Enhancements)
 - [ ] SMS integration (Dialog/Mobitel/Twilio)
 - [ ] WhatsApp Business API notifications
-- [ ] Prescription PDF print view
 - [ ] Medicine autocomplete from catalogue
 - [ ] SLMC API verification
 - [ ] Two-factor authentication (OTP)
