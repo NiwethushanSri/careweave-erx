@@ -6,10 +6,23 @@ import toast from 'react-hot-toast';
 import { ArrowLeft, User, Save, Lock } from 'lucide-react';
 
 const KNOWN_SPECS = [
-  'General Practitioner','Cardiologist','Dermatologist','Endocrinologist',
-  'Gastroenterologist','Neurologist','Oncologist','Ophthalmologist',
-  'Orthopaedic Surgeon','Paediatrician','Psychiatrist','Pulmonologist',
-  'Radiologist','Rheumatologist','Urologist',
+  'General Practitioner','Family Medicine',
+  'Internal Medicine','Cardiology','Clinical Cardiology','Interventional Cardiology',
+  'Endocrinology & Diabetology','Gastroenterology & Hepatology','Haematology',
+  'Infectious Diseases','Nephrology','Neurology','Oncology',
+  'Pulmonology / Respiratory Medicine','Rheumatology',
+  'General Surgery','Cardiothoracic Surgery','Colorectal Surgery','Laparoscopic Surgery',
+  'Neurosurgery','Orthopaedic Surgery','Paediatric Surgery',
+  'Plastic & Reconstructive Surgery','Trauma Surgery','Urology','Vascular Surgery',
+  'Obstetrics & Gynaecology','Gynaecological Oncology','Paediatrics','Neonatology',
+  'Paediatric Neurology','Ophthalmology','Ear, Nose & Throat (ENT)','Otolaryngology',
+  'Dental Surgery','Oral & Maxillofacial Surgery','Psychiatry',
+  'Child & Adolescent Psychiatry','Geriatric Psychiatry',
+  'Radiology','Interventional Radiology','Nuclear Medicine','Pathology',
+  'Microbiology','Clinical Biochemistry','Anaesthesiology','Critical Care Medicine',
+  'Dermatology','Emergency Medicine','Geriatrics','Immunology & Allergy',
+  'Medical Genetics','Occupational Medicine','Palliative Medicine',
+  'Physical Medicine & Rehabilitation','Sports Medicine','Venereology',
 ];
 
 function SpecialisationField({ value, onChange }) {
@@ -169,6 +182,7 @@ export default function DoctorProfile() {
             <div>
               <label className="label">Specialisation</label>
               <SpecialisationField value={form.specialisation} onChange={v => set('specialisation', v)} />
+            </div>
             <div>
               <label className="label">Qualification</label>
               <input className="input" value={form.qualification} onChange={e => set('qualification', e.target.value)}

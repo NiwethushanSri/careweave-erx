@@ -4,6 +4,103 @@ import api from '../../utils/api';
 import toast from 'react-hot-toast';
 import SRI_LANKA_HOSPITALS from '../../data/sriLankaHospitals';
 
+const SL_SPECIALISATIONS = [
+  // General
+  'General Practitioner',
+  'Family Medicine',
+  // Internal Medicine
+  'Internal Medicine',
+  'Cardiology',
+  'Clinical Cardiology',
+  'Interventional Cardiology',
+  'Endocrinology & Diabetology',
+  'Gastroenterology & Hepatology',
+  'Haematology',
+  'Infectious Diseases',
+  'Nephrology',
+  'Neurology',
+  'Oncology',
+  'Pulmonology / Respiratory Medicine',
+  'Rheumatology',
+  // Surgery
+  'General Surgery',
+  'Cardiothoracic Surgery',
+  'Colorectal Surgery',
+  'Laparoscopic Surgery',
+  'Neurosurgery',
+  'Orthopaedic Surgery',
+  'Paediatric Surgery',
+  'Plastic & Reconstructive Surgery',
+  'Trauma Surgery',
+  'Urology',
+  'Vascular Surgery',
+  // Women & Children
+  'Obstetrics & Gynaecology',
+  'Gynaecological Oncology',
+  'Paediatrics',
+  'Neonatology',
+  'Paediatric Neurology',
+  // Eye, ENT, Dental
+  'Ophthalmology',
+  'Ear, Nose & Throat (ENT)',
+  'Otolaryngology',
+  'Dental Surgery',
+  'Oral & Maxillofacial Surgery',
+  // Mental Health
+  'Psychiatry',
+  'Child & Adolescent Psychiatry',
+  'Geriatric Psychiatry',
+  // Diagnostics
+  'Radiology',
+  'Interventional Radiology',
+  'Nuclear Medicine',
+  'Pathology',
+  'Microbiology',
+  'Clinical Biochemistry',
+  // Other specialities
+  'Anaesthesiology',
+  'Critical Care Medicine',
+  'Dermatology',
+  'Emergency Medicine',
+  'Geriatrics',
+  'Immunology & Allergy',
+  'Medical Genetics',
+  'Occupational Medicine',
+  'Palliative Medicine',
+  'Physical Medicine & Rehabilitation',
+  'Sports Medicine',
+  'Venereology',
+];
+
+function SpecialisationSelect({ value, onChange }) {
+  const isOther = value && !SL_SPECIALISATIONS.includes(value);
+  const [showOther, setShowOther] = useState(isOther);
+
+  const handleSelect = (e) => {
+    if (e.target.value === '__other__') {
+      setShowOther(true);
+      onChange('');
+    } else {
+      setShowOther(false);
+      onChange(e.target.value);
+    }
+  };
+
+  return (
+    <>
+      <select className="input" value={showOther ? '__other__' : (value || '')} onChange={handleSelect}>
+        <option value="">— Select Specialisation —</option>
+        {SL_SPECIALISATIONS.map(s => <option key={s} value={s}>{s}</option>)}
+        <option value="__other__">Other (type below ↓)</option>
+      </select>
+      {showOther && (
+        <input className="input mt-2" placeholder="Type your specialisation..."
+          value={value} onChange={e => onChange(e.target.value)} autoFocus />
+      )}
+    </>
+  );
+}
+
 function HospitalDropdown({ value, onChange }) {
   const [search, setSearch] = useState(value || '');
   const [open, setOpen] = useState(false);
@@ -156,29 +253,7 @@ export default function RegisterDoctor() {
               </div>
               <div>
                 <label className="label">Specialisation</label>
-                <select className="input" value={
-                  form.specialisation && !['General Practitioner','Cardiologist','Dermatologist','Endocrinologist',
-                    'Gastroenterologist','Neurologist','Oncologist','Ophthalmologist','Orthopaedic Surgeon',
-                    'Paediatrician','Psychiatrist','Pulmonologist','Radiologist','Rheumatologist','Urologist']
-                    .includes(form.specialisation) ? 'Other' : form.specialisation
-                } onChange={e => {
-                  if (e.target.value === 'Other') set('specialisation', '__other__');
-                  else set('specialisation', e.target.value);
-                }}>
-                  <option value="">General Practitioner</option>
-                  {['Cardiologist','Dermatologist','Endocrinologist','Gastroenterologist','Neurologist',
-                    'Oncologist','Ophthalmologist','Orthopaedic Surgeon','Paediatrician','Psychiatrist',
-                    'Pulmonologist','Radiologist','Rheumatologist','Urologist'].map(s => <option key={s}>{s}</option>)}
-                  <option value="Other">Other (type below)</option>
-                </select>
-                {(form.specialisation === '__other__' || (form.specialisation && !['General Practitioner','Cardiologist','Dermatologist','Endocrinologist',
-                    'Gastroenterologist','Neurologist','Oncologist','Ophthalmologist','Orthopaedic Surgeon',
-                    'Paediatrician','Psychiatrist','Pulmonologist','Radiologist','Rheumatologist','Urologist']
-                    .includes(form.specialisation))) && (
-                  <input className="input mt-2" placeholder="Type your specialisation..."
-                    value={form.specialisation === '__other__' ? '' : form.specialisation}
-                    onChange={e => set('specialisation', e.target.value)} autoFocus />
-                )}
+                <SpecialisationSelect value={form.specialisation} onChange={v => set('specialisation', v)} />
               </div>
               <div className="col-span-2">
                 <label className="label">Qualification</label>
