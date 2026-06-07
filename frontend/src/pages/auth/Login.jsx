@@ -109,7 +109,7 @@ Keep answers short, clear and friendly. Do not answer questions unrelated to the
 
   return (
     <div style={{
-      position: 'fixed', bottom: '70px', right: '20px', width: '340px',
+      position: 'fixed', bottom: '70px', right: '10px', width: 'min(340px, calc(100vw - 20px))',
       background: 'white', borderRadius: '16px', boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
       zIndex: 100, display: 'flex', flexDirection: 'column', overflow: 'hidden',
       border: '1px solid rgba(0,0,0,0.08)', maxHeight: '480px'
@@ -220,7 +220,7 @@ export default function Login() {
           {/* Logo */}
           <div className="flex justify-center mb-3">
             <img src="/logo.png" alt="CareWeave eRx"
-              style={{ height: '110px', objectFit: 'contain', filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.18))' }} />
+              style={{ height: '80px', objectFit: 'contain', filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.18))' }} />
           </div>
 
           {/* Login card */}
