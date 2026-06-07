@@ -264,7 +264,7 @@ export default function Login() {
             </div>
           </div>
 
-          <p className="text-center text-xs text-gray-600 mt-4 font-medium">
+          <p className="text-center text-xs text-gray-600 mt-4 mb-20 font-medium">
             Ministry of Health Sri Lanka · Secure Digital Health Platform
           </p>
         </div>
@@ -272,7 +272,7 @@ export default function Login() {
 
       {/* AI Chatbot button */}
       <button onClick={() => setChatOpen(!chatOpen)} style={{
-        position: 'fixed', bottom: '58px', right: '20px', zIndex: 99,
+        position: 'fixed', bottom: '70px', right: '16px', zIndex: 99,
         width: '52px', height: '52px', borderRadius: '50%',
         background: '#059669', border: 'none', cursor: 'pointer',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
