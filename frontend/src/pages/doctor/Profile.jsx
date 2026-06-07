@@ -13,27 +13,42 @@ const KNOWN_SPECS = [
 ];
 
 function SpecialisationField({ value, onChange }) {
-  const isOther = value && !KNOWN_SPECS.includes(value);
-  const selectVal = isOther ? 'Other' : (value || '');
+  // showOther: true if the value is not in the known list (including empty after selecting Other)
+  const isKnown = KNOWN_SPECS.includes(value);
+  const [showOther, setShowOther] = useState(!isKnown);
+
+  const handleSelect = (e) => {
+    if (e.target.value === '__other__') {
+      setShowOther(true);
+      onChange(''); // clear so user types
+    } else {
+      setShowOther(false);
+      onChange(e.target.value);
+    }
+  };
 
   return (
-    <>
-      <select className="input" value={selectVal}
-        onChange={e => {
-          if (e.target.value === 'Other') onChange('__other__');
-          else onChange(e.target.value);
-        }}>
+    <div>
+      <select
+        className="input"
+        value={showOther ? '__other__' : (value || '')}
+        onChange={handleSelect}
+      >
         <option value="">Select specialisation</option>
-        {KNOWN_SPECS.map(s => <option key={s}>{s}</option>)}
-        <option value="Other">Other (type below)</option>
+        {KNOWN_SPECS.map(s => <option key={s} value={s}>{s}</option>)}
+        <option value="__other__">Other (type below ↓)</option>
       </select>
-      {(selectVal === 'Other' || isOther) && (
-        <input className="input mt-2" placeholder="Type your specialisation..."
-          value={value === '__other__' ? '' : value}
+
+      {showOther && (
+        <input
+          className="input mt-2"
+          placeholder="Type your specialisation here..."
+          value={value}
           onChange={e => onChange(e.target.value)}
-          autoFocus />
+          autoFocus
+        />
       )}
-    </>
+    </div>
   );
 }
 
