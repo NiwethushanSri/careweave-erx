@@ -4,7 +4,7 @@ import api from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
-import { CheckCircle, Clock, Package, Pill, FileText, ChevronRight } from 'lucide-react';
+import { CheckCircle, Clock, Package, Pill, FileText, ChevronRight, ArrowLeft, ChevronDown, ChevronUp } from 'lucide-react';
 
 const steps = [
   { key: 'created', label: 'Prescription Created', icon: FileText, desc: 'Doctor created your prescription' },
@@ -16,6 +16,7 @@ const steps = [
 const statusIndex = { created: 0, sent: 1, received: 2, dispensed: 3, cancelled: -1 };
 
 function TrackBar({ prescription }) {
+  const [expanded, setExpanded] = useState(false);
   const currentStep = statusIndex[prescription.status] ?? 0;
   const isCancelled = prescription.status === 'cancelled';
 
@@ -99,16 +100,72 @@ function TrackBar({ prescription }) {
         </div>
       )}
 
-      {/* Medicines */}
-      {prescription.medicines?.length > 0 && (
-        <div className="mt-4 pt-4 border-t border-gray-50">
-          <p className="text-xs text-gray-400 mb-2">Medicines</p>
-          <div className="flex flex-wrap gap-1.5">
-            {prescription.medicines.map((m, i) => (
-              <span key={i} className="text-xs bg-gray-50 border border-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
-                {m.medicine_name} {m.dosage}
-              </span>
-            ))}
+      {/* Expand / collapse button */}
+      <button onClick={() => setExpanded(!expanded)}
+        className="mt-4 w-full flex items-center justify-center gap-1.5 text-xs text-brand-600 font-medium py-2 border-t border-gray-100 hover:bg-gray-50 rounded-b-xl transition-colors">
+        {expanded ? <><ChevronUp className="w-3.5 h-3.5" /> Hide medicine details</> : <><ChevronDown className="w-3.5 h-3.5" /> View medicine details &amp; instructions</>}
+      </button>
+
+      {/* Full medicine details — shown when expanded */}
+      {expanded && prescription.medicines?.length > 0 && (
+        <div className="mt-2 pt-3 border-t border-gray-100 space-y-3">
+          {/* Doctor note */}
+          {prescription.diagnosis && (
+            <div className="bg-blue-50 rounded-lg p-3">
+              <p className="text-xs font-semibold text-blue-600 uppercase mb-0.5">Diagnosis</p>
+              <p className="text-sm font-medium text-blue-800">{prescription.diagnosis}</p>
+            </div>
+          )}
+          {prescription.notes && (
+            <div className="bg-amber-50 rounded-lg p-3">
+              <p className="text-xs font-semibold text-amber-600 uppercase mb-0.5">Doctor's Notes</p>
+              <p className="text-sm text-amber-800">{prescription.notes}</p>
+            </div>
+          )}
+
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Prescribed Medicines</p>
+          {prescription.medicines.map((m, i) => (
+            <div key={i} className="bg-gray-50 border border-gray-100 rounded-xl p-4">
+              <div className="flex items-start justify-between mb-2">
+                <div>
+                  <p className="font-semibold text-gray-900 text-sm">{m.medicine_name}</p>
+                  <p className="text-xs text-gray-500">{m.generic_name || ''}</p>
+                </div>
+                <span className="text-sm font-bold text-brand-700 bg-brand-50 px-2 py-0.5 rounded-lg">{m.dosage}</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-xs mt-2">
+                {m.frequency && (
+                  <div className="bg-white rounded-lg p-2 border border-gray-100">
+                    <p className="text-gray-400 mb-0.5">How often</p>
+                    <p className="font-semibold text-gray-700">{m.frequency}</p>
+                  </div>
+                )}
+                {m.quantity && (
+                  <div className="bg-white rounded-lg p-2 border border-gray-100">
+                    <p className="text-gray-400 mb-0.5">Quantity</p>
+                    <p className="font-semibold text-gray-700">{m.quantity} tablet{m.quantity > 1 ? 's' : ''}</p>
+                  </div>
+                )}
+                {m.duration && (
+                  <div className="bg-white rounded-lg p-2 border border-gray-100">
+                    <p className="text-gray-400 mb-0.5">Duration</p>
+                    <p className="font-semibold text-gray-700">{m.duration}</p>
+                  </div>
+                )}
+                {m.instructions && (
+                  <div className="bg-green-50 rounded-lg p-2 border border-green-100 col-span-2">
+                    <p className="text-green-500 mb-0.5">Instructions</p>
+                    <p className="font-medium text-green-800">{m.instructions}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+
+          {/* Prescribed by */}
+          <div className="text-xs text-gray-400 text-center pt-1">
+            Prescribed by Dr. {prescription.doctor_name}
+            {prescription.slmc_number ? ` · SLMC: ${prescription.slmc_number}` : ''}
           </div>
         </div>
       )}
@@ -146,10 +203,16 @@ export default function PrescriptionTracker() {
   const active = prescriptions.filter(p => ['created','sent','received'].includes(p.status)).length;
 
   return (
-    <div className="p-6 max-w-3xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
+    <div className="p-4 sm:p-6 max-w-3xl mx-auto">
+      {/* Back button */}
+      <button onClick={() => navigate('/patient')}
+        className="flex items-center gap-1.5 text-gray-500 hover:text-gray-700 text-sm mb-4">
+        <ArrowLeft className="w-4 h-4" /> Back to Dashboard
+      </button>
+
+      <div className="flex items-center justify-between mb-5">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Prescription Tracker</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Prescription Tracker</h1>
           <p className="text-sm text-gray-500">Track your prescription journey in real time</p>
         </div>
         {active > 0 && (

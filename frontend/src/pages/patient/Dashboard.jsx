@@ -4,7 +4,103 @@ import api from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
-import { FileText, Bell, MapPin, Activity, User, Pill, Stethoscope, Download, Navigation, Clock } from 'lucide-react';
+import { FileText, Bell, MapPin, Activity, User, Pill, Stethoscope, Download, Navigation, Clock, ChevronDown, ChevronUp } from 'lucide-react';
+
+// Expandable prescription card with full medicine details
+function PrescriptionCard({ p, navigate, statusColors }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="card overflow-hidden">
+      {/* Summary row — always visible */}
+      <div className="p-4 cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => setOpen(!open)}>
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap mb-1">
+              <span className="font-mono text-sm font-semibold text-brand-700">{p.prescription_code}</span>
+              <span className={`status-badge ${statusColors[p.status] || 'bg-gray-100 text-gray-600'}`}>{p.status}</span>
+            </div>
+            <p className="text-sm text-gray-700 font-medium">Dr. {p.doctor_name}</p>
+            {p.diagnosis && <p className="text-xs text-gray-500 mt-0.5">Dx: {p.diagnosis}</p>}
+            <p className="text-xs text-gray-400 mt-0.5">{format(new Date(p.created_at), 'dd MMM yyyy')} · Valid until {format(new Date(p.valid_until), 'dd MMM yyyy')}</p>
+          </div>
+          <div className="flex flex-col items-end gap-1 shrink-0">
+            {open ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+          </div>
+        </div>
+      </div>
+
+      {/* Expanded details */}
+      {open && (
+        <div className="border-t border-gray-100 bg-gray-50/50 p-4 space-y-3">
+          {/* Doctor info */}
+          <div className="text-xs text-gray-500">
+            <span className="font-medium">Prescribed by:</span> Dr. {p.doctor_name}
+            {p.slmc_number && ` · SLMC: ${p.slmc_number}`}
+            {p.specialisation && ` · ${p.specialisation}`}
+          </div>
+          {p.pharmacy_name && (
+            <div className="text-xs text-gray-500">
+              <span className="font-medium">Pharmacy:</span> {p.pharmacy_name}
+            </div>
+          )}
+          {p.notes && (
+            <div className="bg-amber-50 border border-amber-100 rounded-lg p-3 text-xs text-amber-800">
+              <p className="font-semibold mb-0.5">Doctor's Notes</p>
+              <p>{p.notes}</p>
+            </div>
+          )}
+
+          {/* Medicines full detail */}
+          {p.medicines?.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Medicines ({p.medicines.length})</p>
+              {p.medicines.map((m, i) => (
+                <div key={i} className="bg-white border border-gray-200 rounded-xl p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="font-semibold text-sm text-gray-900">{m.medicine_name}</p>
+                    <span className="text-sm font-bold text-brand-700 bg-brand-50 px-2 py-0.5 rounded-lg">{m.dosage}</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1.5 text-xs">
+                    {m.frequency && (
+                      <div className="bg-gray-50 rounded-lg p-2">
+                        <p className="text-gray-400">How often</p>
+                        <p className="font-semibold text-gray-700 mt-0.5">{m.frequency}</p>
+                      </div>
+                    )}
+                    {m.quantity && (
+                      <div className="bg-gray-50 rounded-lg p-2">
+                        <p className="text-gray-400">Quantity</p>
+                        <p className="font-semibold text-gray-700 mt-0.5">{m.quantity} tablet{m.quantity > 1 ? 's' : ''}</p>
+                      </div>
+                    )}
+                    {m.duration && (
+                      <div className="bg-gray-50 rounded-lg p-2">
+                        <p className="text-gray-400">Duration</p>
+                        <p className="font-semibold text-gray-700 mt-0.5">{m.duration}</p>
+                      </div>
+                    )}
+                    {m.instructions && (
+                      <div className="bg-green-50 border border-green-100 rounded-lg p-2 col-span-2">
+                        <p className="text-green-500">Instructions</p>
+                        <p className="font-medium text-green-800 mt-0.5">{m.instructions}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* PDF download */}
+          <button onClick={() => navigate(`/prescription/${p.id}/pdf`)}
+            className="flex items-center gap-1.5 text-xs text-brand-600 hover:underline font-medium pt-1">
+            <Download className="w-3 h-3" /> Download Prescription PDF
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function useGreeting() {
   const [now, setNow] = useState(new Date());
@@ -265,48 +361,15 @@ export default function PatientDashboard() {
 
       {/* PRESCRIPTIONS TAB */}
       {tab === 'prescriptions' && (
-        <div className="card">
-          <div className="p-4 border-b border-gray-100 flex items-center justify-between">
-            <h2 className="font-semibold">All Prescriptions</h2>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between px-1">
+            <h2 className="font-semibold text-gray-800">All Prescriptions</h2>
             <span className="text-sm text-gray-400">{prescriptions.length} total</span>
           </div>
           {prescriptions.length === 0 ? (
-            <div className="p-8 text-center text-gray-400">No prescriptions yet</div>
+            <div className="card p-8 text-center text-gray-400">No prescriptions yet</div>
           ) : (
-            <div className="divide-y divide-gray-50">
-              {prescriptions.map(p => (
-                <div key={p.id} className="p-4">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-mono text-sm font-semibold text-brand-700">{p.prescription_code}</span>
-                        <span className={`status-badge ${statusColors[p.status] || 'bg-gray-100 text-gray-600'}`}>{p.status}</span>
-                      </div>
-                      <p className="text-sm text-gray-600">Dr. {p.doctor_name} {p.slmc_number ? `(${p.slmc_number})` : ''}</p>
-                      {p.pharmacy_name && <p className="text-xs text-gray-400">Pharmacy: {p.pharmacy_name}</p>}
-                      {p.diagnosis && <p className="text-xs text-gray-500 mt-1">Dx: {p.diagnosis}</p>}
-                      {p.medicines && p.medicines.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {p.medicines.map((m, i) => (
-                            <span key={i} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">
-                              {m.medicine_name} {m.dosage}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    <div className="text-right ml-4">
-                      <p className="text-xs text-gray-400">{format(new Date(p.created_at), 'dd MMM yyyy')}</p>
-                      <p className="text-xs text-gray-400">Valid: {format(new Date(p.valid_until), 'dd MMM yyyy')}</p>
-                      <button onClick={() => navigate(`/prescription/${p.id}/patient-pdf`)}
-                        className="mt-1 text-xs text-brand-600 hover:underline flex items-center gap-1 ml-auto">
-                        <Download className="w-3 h-3" /> PDF
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+            prescriptions.map(p => <PrescriptionCard key={p.id} p={p} navigate={navigate} statusColors={statusColors} />)
           )}
         </div>
       )}
