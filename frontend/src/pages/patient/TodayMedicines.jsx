@@ -426,7 +426,7 @@ export default function TodayMedicines() {
               onLogDose={handleLogDose}
               onUnlog={handleUnlog}
               onStop={setStopTarget}
-              onShowMotivation={() => setMotivationIdx(Math.floor(Math.random() * MOTIVATIONAL.length))}
+              onShowMotivation={() => setMotivationIdx(prev => prev !== null ? prev : Math.floor(Math.random() * MOTIVATIONAL.length))}
             />
           ))}
         </div>
