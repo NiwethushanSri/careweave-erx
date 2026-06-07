@@ -30,13 +30,14 @@ const createPrescription = async (req, res) => {
     }
     const doctor = doctorResult.rows[0];
 
-    // Get patient
+    // Get patient — case-insensitive NIC, also accept mobile
     const patientResult = await client.query(
-      'SELECT pa.id, u.full_name, u.mobile, u.email FROM patients pa JOIN users u ON u.id = pa.user_id WHERE u.nic = $1',
+      `SELECT pa.id, u.full_name, u.mobile, u.email FROM patients pa JOIN users u ON u.id = pa.user_id
+       WHERE UPPER(TRIM(u.nic)) = UPPER(TRIM($1)) OR TRIM(u.mobile) = TRIM($1)`,
       [patient_nic]
     );
     if (!patientResult.rows[0]) {
-      return res.status(404).json({ success: false, message: 'Patient not found with this NIC' });
+      return res.status(404).json({ success: false, message: 'Patient not found' });
     }
     const patient = patientResult.rows[0];
 

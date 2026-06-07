@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
 import { Plus, Trash2, Search, MapPin } from 'lucide-react';
+import { format } from 'date-fns';
 
 const emptyMed = { medicine_name: '', generic_name: '', dosage: '', quantity: 1, frequency: '', duration: '', instructions: '' };
 
@@ -121,7 +122,7 @@ export default function NewPrescription() {
           {patient && (
             <div className="mt-3 p-3 bg-green-50 rounded-lg border border-green-100 text-sm space-y-1">
               <p className="font-medium text-green-800">{patient.full_name}</p>
-              <p className="text-green-600">NIC: {patient.nic} · {patient.gender} · DOB: {patient.date_of_birth || '—'}</p>
+              <p className="text-green-600">NIC: {patient.nic} · {patient.gender} · DOB: {patient.date_of_birth ? format(new Date(patient.date_of_birth), 'dd MMM yyyy') : '—'}</p>
               {patient.district && (
                 <p className="text-green-700 flex items-center gap-1">
                   <MapPin className="w-3 h-3" />
