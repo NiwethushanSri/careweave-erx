@@ -67,8 +67,8 @@ const limiter = rateLimit({
 });
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
-  message: { success: false, message: 'Too many login attempts. Please wait.' }
+  max: 50, // allow 50 attempts per 15 min (dev-friendly; tighten before production)
+  message: { success: false, message: 'Too many login attempts. Please wait 15 minutes.' }
 });
 
 app.use('/api', limiter);
