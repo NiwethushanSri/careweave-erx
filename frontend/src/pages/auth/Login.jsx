@@ -109,7 +109,7 @@ Keep answers short, clear and friendly. Do not answer questions unrelated to the
 
   return (
     <div style={{
-      position: 'fixed', bottom: '108px', right: '10px', width: 'min(340px, calc(100vw - 20px))',
+      position: 'fixed', bottom: '100px', right: '10px', width: 'min(340px, calc(100vw - 20px))',
       background: 'white', borderRadius: '16px', boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
       zIndex: 100, display: 'flex', flexDirection: 'column', overflow: 'hidden',
       border: '1px solid rgba(0,0,0,0.08)', maxHeight: '480px'
@@ -202,91 +202,95 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ position: 'relative' }}>
+    <div style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
       {/* Background image */}
       <div style={{
-        position: 'fixed', inset: 0,
+        position: 'absolute', inset: 0,
         backgroundImage: 'url(/bg-login.jpg)',
         backgroundSize: 'cover', backgroundPosition: 'center',
         opacity: 0.45, zIndex: 0,
       }} />
 
-      {/* Content */}
-      <div className="flex-1 flex items-center justify-center px-4 py-6"
-        style={{ position: 'relative', zIndex: 2 }}>
-        <div className="w-full max-w-sm">
+      {/* Full-screen centered content — no scroll */}
+      <div style={{
+        position: 'relative', zIndex: 2,
+        flex: 1, display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center',
+        padding: '12px 16px 80px 16px',   /* bottom pad for footer */
+        gap: '12px',
+        overflow: 'hidden',
+      }}>
+        {/* Logo */}
+        <img src="/logo.png" alt="CareWeave eRx"
+          style={{ height: '58px', objectFit: 'contain', filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.18))', flexShrink: 0 }} />
 
-          {/* Logo */}
-          <div className="flex justify-center mb-4">
-            <img src="/logo.png" alt="CareWeave eRx"
-              style={{ height: '70px', objectFit: 'contain', filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.18))' }} />
-          </div>
-
-          {/* Login card */}
-          <div className="card p-5 sm:p-6" style={{ background: 'rgba(255,255,255,0.97)', backdropFilter: 'blur(8px)' }}>
-            <h2 className="text-lg font-semibold mb-6">Sign in to your account</h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="label">NIC / Mobile / Email</label>
-                <input className="input" placeholder="Enter NIC, mobile number or email"
-                  value={identifier} onChange={e => setIdentifier(e.target.value)} required />
+        {/* Login card */}
+        <div className="card w-full" style={{
+          maxWidth: '380px', background: 'rgba(255,255,255,0.97)',
+          backdropFilter: 'blur(8px)', padding: '20px',
+        }}>
+          <h2 className="font-semibold mb-4" style={{ fontSize: '16px' }}>Sign in to your account</h2>
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div>
+              <label className="label">NIC / Mobile / Email</label>
+              <input className="input" placeholder="Enter NIC, mobile number or email"
+                value={identifier} onChange={e => setIdentifier(e.target.value)} required />
+            </div>
+            <div>
+              <label className="label">Password</label>
+              <div className="relative">
+                <input className="input pr-10" type={showPass ? 'text' : 'password'}
+                  placeholder="Enter password" value={password}
+                  onChange={e => setPassword(e.target.value)} required />
+                <button type="button" onClick={() => setShowPass(!showPass)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                  {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
-              <div>
-                <label className="label">Password</label>
-                <div className="relative">
-                  <input className="input pr-10" type={showPass ? 'text' : 'password'}
-                    placeholder="Enter password" value={password}
-                    onChange={e => setPassword(e.target.value)} required />
-                  <button type="button" onClick={() => setShowPass(!showPass)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                    {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-                <div className="flex justify-end mt-1">
-                  <Link to="/forgot-password" className="text-xs text-brand-600 hover:underline">Forgot password?</Link>
-                </div>
-              </div>
-              <button type="submit" disabled={loading} className="btn-primary w-full py-2.5">
-                {loading ? 'Signing in...' : 'Sign in'}
-              </button>
-            </form>
-
-            <div className="mt-6 pt-6 border-t border-gray-100 space-y-2 text-sm text-center">
-              <p className="text-gray-500">New to CareWeave eRx?</p>
-              <div className="flex gap-2 justify-center flex-wrap">
-                <Link to="/register/patient" className="text-brand-600 hover:underline">Register as Patient</Link>
-                <span className="text-gray-300">|</span>
-                <Link to="/register/doctor" className="text-brand-600 hover:underline">Register as Doctor</Link>
-                <span className="text-gray-300">|</span>
-                <Link to="/register/pharmacy" className="text-brand-600 hover:underline">Register as Pharmacy</Link>
+              <div className="flex justify-end mt-1">
+                <Link to="/forgot-password" className="text-xs text-brand-600 hover:underline">Forgot password?</Link>
               </div>
             </div>
-          </div>
+            <button type="submit" disabled={loading} className="btn-primary w-full py-2.5">
+              {loading ? 'Signing in...' : 'Sign in'}
+            </button>
+          </form>
 
-          <p className="text-center text-xs text-gray-600 mt-4 font-medium" style={{ marginBottom: '120px' }}>
-            Ministry of Health Sri Lanka · Secure Digital Health Platform
-          </p>
+          <div style={{ marginTop: '14px', paddingTop: '14px', borderTop: '1px solid #f3f4f6', textAlign: 'center' }}>
+            <p className="text-gray-500" style={{ fontSize: '13px', marginBottom: '6px' }}>New to CareWeave eRx?</p>
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap', fontSize: '13px' }}>
+              <Link to="/register/patient" className="text-brand-600 hover:underline">Register as Patient</Link>
+              <span className="text-gray-300">|</span>
+              <Link to="/register/doctor" className="text-brand-600 hover:underline">Register as Doctor</Link>
+              <span className="text-gray-300">|</span>
+              <Link to="/register/pharmacy" className="text-brand-600 hover:underline">Register as Pharmacy</Link>
+            </div>
+          </div>
         </div>
+
+        {/* Ministry text */}
+        <p style={{ fontSize: '11px', color: '#4b5563', fontWeight: '500', textAlign: 'center', flexShrink: 0 }}>
+          Ministry of Health Sri Lanka · Secure Digital Health Platform
+        </p>
       </div>
 
       {/* Fixed footer */}
-      <footer style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 10, background: 'rgba(255,255,255,0.88)', borderTop: '1px solid rgba(0,0,0,0.06)', backdropFilter: 'blur(8px)' }}>
-        <div className="py-2 flex items-center justify-center text-xs text-gray-500">
-          Developed by <span className="font-semibold text-gray-700 mx-1">Niwethushan</span> ·
+      <footer style={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 10, background: 'rgba(255,255,255,0.88)', borderTop: '1px solid rgba(0,0,0,0.06)', backdropFilter: 'blur(8px)' }}>
+        <div style={{ padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', color: '#6b7280' }}>
+          Developed by <span style={{ fontWeight: '600', color: '#374151', margin: '0 4px' }}>Niwethushan</span> ·
           <a href="https://forge9x.co.uk" target="_blank" rel="noreferrer"
             className="font-bold text-brand-600 hover:text-brand-700 ml-1">Forge9x</a>
         </div>
       </footer>
 
-      {/* AI Chatbot button — sits just above footer */}
+      {/* AI Chatbot button */}
       <button onClick={() => setChatOpen(!chatOpen)} style={{
-        position: 'fixed', bottom: '52px', right: '16px', zIndex: 99,
-        width: '48px', height: '48px', borderRadius: '50%',
+        position: 'absolute', bottom: '48px', right: '16px', zIndex: 99,
+        width: '46px', height: '46px', borderRadius: '50%',
         background: '#059669', border: 'none', cursor: 'pointer',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         boxShadow: '0 4px 16px rgba(5,150,105,0.4)',
-        transition: 'transform 0.2s'
       }}>
         {chatOpen ? <X size={20} color="white" /> : <MessageCircle size={20} color="white" />}
       </button>
@@ -294,7 +298,7 @@ export default function Login() {
       {/* Chatbot tooltip - desktop only */}
       {!chatOpen && (
         <div className="hidden sm:block" style={{
-          position: 'fixed', bottom: '108px', right: '16px', zIndex: 99,
+          position: 'absolute', bottom: '102px', right: '16px', zIndex: 99,
           background: '#059669', color: 'white', fontSize: '12px',
           padding: '4px 10px', borderRadius: '20px', whiteSpace: 'nowrap',
           boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
