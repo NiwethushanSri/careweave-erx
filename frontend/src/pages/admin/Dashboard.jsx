@@ -34,13 +34,13 @@ export default function AdminDashboard() {
   if (loading) return <div className="p-8 text-center text-gray-400">Loading...</div>;
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
-      <div className="flex items-center gap-3 mb-8">
+    <div className="p-4 sm:p-6 max-w-6xl mx-auto">
+      <div className="flex items-center gap-3 mb-6">
         <div className="w-10 h-10 bg-brand-600 rounded-xl flex items-center justify-center">
           <Shield className="w-5 h-5 text-white" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Government Admin Portal</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Government Admin Portal</h1>
           <p className="text-gray-500 text-sm">CareWeave eRx — System Management</p>
         </div>
       </div>
@@ -134,20 +134,16 @@ export default function AdminDashboard() {
               <div className="divide-y divide-gray-50">
                 {pending.doctors.map(doc => (
                   <div key={doc.id} className="p-4">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <p className="font-semibold text-gray-900">{doc.full_name}</p>
-                        <p className="text-sm text-gray-500">SLMC: {doc.slmc_number}</p>
-                        <p className="text-sm text-gray-500">Specialisation: {doc.specialisation || '—'}</p>
-                        <p className="text-sm text-gray-500">Clinic: {doc.clinic_name || '—'}</p>
-                        <p className="text-xs text-gray-400">NIC: {doc.nic} · {doc.mobile}</p>
-                      </div>
-                      <div className="flex gap-2 ml-4">
-                        <button onClick={() => handleApproval(doc.id, 'approve')}
-                          className="btn-primary text-sm py-1.5 px-3">Approve</button>
-                        <button onClick={() => handleApproval(doc.id, 'reject')}
-                          className="btn-danger text-sm py-1.5 px-3">Reject</button>
-                      </div>
+                    <p className="font-semibold text-gray-900">{doc.full_name}</p>
+                    <p className="text-sm text-gray-500">SLMC: {doc.slmc_number}</p>
+                    <p className="text-sm text-gray-500">Specialisation: {doc.specialisation || '—'}</p>
+                    <p className="text-sm text-gray-500">Clinic: {doc.clinic_name || '—'}</p>
+                    <p className="text-xs text-gray-400 mb-3">NIC: {doc.nic} · {doc.mobile}</p>
+                    <div className="flex gap-2">
+                      <button onClick={() => handleApproval(doc.id, 'approve')}
+                        className="btn-primary text-sm py-1.5 px-4 flex-1 sm:flex-none">Approve</button>
+                      <button onClick={() => handleApproval(doc.id, 'reject')}
+                        className="btn-danger text-sm py-1.5 px-4 flex-1 sm:flex-none">Reject</button>
                     </div>
                   </div>
                 ))}
@@ -166,19 +162,15 @@ export default function AdminDashboard() {
               <div className="divide-y divide-gray-50">
                 {pending.pharmacies.map(ph => (
                   <div key={ph.id} className="p-4">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <p className="font-semibold text-gray-900">{ph.pharmacy_name}</p>
-                        <p className="text-sm text-gray-500">Licence: {ph.licence_number}</p>
-                        <p className="text-sm text-gray-500">{ph.address}, {ph.city}</p>
-                        <p className="text-xs text-gray-400">Owner: {ph.full_name} · {ph.mobile}</p>
-                      </div>
-                      <div className="flex gap-2 ml-4">
-                        <button onClick={() => handleApproval(ph.id, 'approve')}
-                          className="btn-primary text-sm py-1.5 px-3">Approve</button>
-                        <button onClick={() => handleApproval(ph.id, 'reject')}
-                          className="btn-danger text-sm py-1.5 px-3">Reject</button>
-                      </div>
+                    <p className="font-semibold text-gray-900">{ph.pharmacy_name}</p>
+                    <p className="text-sm text-gray-500">Licence: {ph.licence_number}</p>
+                    <p className="text-sm text-gray-500">{ph.address}, {ph.city}</p>
+                    <p className="text-xs text-gray-400 mb-3">Owner: {ph.full_name} · {ph.mobile}</p>
+                    <div className="flex gap-2">
+                      <button onClick={() => handleApproval(ph.id, 'approve')}
+                        className="btn-primary text-sm py-1.5 px-4 flex-1 sm:flex-none">Approve</button>
+                      <button onClick={() => handleApproval(ph.id, 'reject')}
+                        className="btn-danger text-sm py-1.5 px-4 flex-1 sm:flex-none">Reject</button>
                     </div>
                   </div>
                 ))}

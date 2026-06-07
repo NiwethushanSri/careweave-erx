@@ -109,7 +109,7 @@ Keep answers short, clear and friendly. Do not answer questions unrelated to the
 
   return (
     <div style={{
-      position: 'fixed', bottom: '70px', right: '10px', width: 'min(340px, calc(100vw - 20px))',
+      position: 'fixed', bottom: '108px', right: '10px', width: 'min(340px, calc(100vw - 20px))',
       background: 'white', borderRadius: '16px', boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
       zIndex: 100, display: 'flex', flexDirection: 'column', overflow: 'hidden',
       border: '1px solid rgba(0,0,0,0.08)', maxHeight: '480px'
@@ -264,28 +264,37 @@ export default function Login() {
             </div>
           </div>
 
-          <p className="text-center text-xs text-gray-600 mt-4 mb-20 font-medium">
+          <p className="text-center text-xs text-gray-600 mt-4 font-medium" style={{ marginBottom: '120px' }}>
             Ministry of Health Sri Lanka · Secure Digital Health Platform
           </p>
         </div>
       </div>
 
-      {/* AI Chatbot button */}
+      {/* Fixed footer */}
+      <footer style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 10, background: 'rgba(255,255,255,0.88)', borderTop: '1px solid rgba(0,0,0,0.06)', backdropFilter: 'blur(8px)' }}>
+        <div className="py-2 flex items-center justify-center text-xs text-gray-500">
+          Developed by <span className="font-semibold text-gray-700 mx-1">Niwethushan</span> ·
+          <a href="https://forge9x.co.uk" target="_blank" rel="noreferrer"
+            className="font-bold text-brand-600 hover:text-brand-700 ml-1">Forge9x</a>
+        </div>
+      </footer>
+
+      {/* AI Chatbot button — sits just above footer */}
       <button onClick={() => setChatOpen(!chatOpen)} style={{
-        position: 'fixed', bottom: '70px', right: '16px', zIndex: 99,
-        width: '52px', height: '52px', borderRadius: '50%',
+        position: 'fixed', bottom: '52px', right: '16px', zIndex: 99,
+        width: '48px', height: '48px', borderRadius: '50%',
         background: '#059669', border: 'none', cursor: 'pointer',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         boxShadow: '0 4px 16px rgba(5,150,105,0.4)',
         transition: 'transform 0.2s'
       }}>
-        {chatOpen ? <X size={22} color="white" /> : <MessageCircle size={22} color="white" />}
+        {chatOpen ? <X size={20} color="white" /> : <MessageCircle size={20} color="white" />}
       </button>
 
-      {/* Chatbot tooltip - hidden on mobile */}
+      {/* Chatbot tooltip - desktop only */}
       {!chatOpen && (
         <div className="hidden sm:block" style={{
-          position: 'fixed', bottom: '118px', right: '16px', zIndex: 99,
+          position: 'fixed', bottom: '108px', right: '16px', zIndex: 99,
           background: '#059669', color: 'white', fontSize: '12px',
           padding: '4px 10px', borderRadius: '20px', whiteSpace: 'nowrap',
           boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
@@ -296,15 +305,6 @@ export default function Login() {
 
       {/* Chatbot panel */}
       {chatOpen && <ChatBot onClose={() => setChatOpen(false)} />}
-
-      {/* Fixed footer */}
-      <footer style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 10, background: 'rgba(255,255,255,0.88)', borderTop: '1px solid rgba(0,0,0,0.06)', backdropFilter: 'blur(8px)' }}>
-        <div className="py-2.5 flex items-center justify-center text-sm text-gray-500">
-          Developed by <span className="font-semibold text-gray-700 mx-1">Niwethushan</span> ·
-          <a href="https://forge9x.co.uk" target="_blank" rel="noreferrer"
-            className="font-bold text-brand-600 hover:text-brand-700 ml-1">Forge9x</a>
-        </div>
-      </footer>
     </div>
   );
 }

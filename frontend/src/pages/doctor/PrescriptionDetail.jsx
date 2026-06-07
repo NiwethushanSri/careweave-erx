@@ -75,38 +75,39 @@ export default function PrescriptionDetail() {
   if (!prescription) return <div className="p-8 text-center text-gray-400">Not found</div>;
 
   return (
-    <div className="p-6 max-w-3xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-gray-500 hover:text-gray-700">
+    <div className="p-4 sm:p-6 max-w-3xl mx-auto">
+      {/* Top bar */}
+      <div className="flex items-center justify-between mb-4 gap-2">
+        <button onClick={() => navigate(-1)} className="flex items-center gap-1.5 text-gray-500 hover:text-gray-700 text-sm shrink-0">
           <ArrowLeft className="w-4 h-4" /> Back
         </button>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap justify-end">
           {(user.role === 'pharmacy' || user.role === 'admin') && prescription.status === 'dispensed' && (
             <button onClick={() => navigate(`/prescription/${id}/invoice`)}
-              className="btn-secondary flex items-center gap-2 text-sm text-green-700 border-green-200">
-              <Receipt className="w-4 h-4" /> Create Invoice
+              className="btn-secondary flex items-center gap-1.5 text-xs sm:text-sm text-green-700 border-green-200 py-1.5 px-3">
+              <Receipt className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Create</span> Invoice
             </button>
           )}
           <button onClick={() => navigate(`/prescription/${id}/pdf`)}
-            className="btn-secondary flex items-center gap-2 text-sm">
-            <FileText className="w-4 h-4" /> Download PDF
+            className="btn-secondary flex items-center gap-1.5 text-xs sm:text-sm py-1.5 px-3">
+            <FileText className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Download</span> PDF
           </button>
-      {user.role === 'doctor' && prescription.status === 'created' && (
+          {user.role === 'doctor' && prescription.status === 'created' && (
             <button onClick={handleCancel} disabled={cancelling}
-              className="btn-danger flex items-center gap-2 text-sm">
-              <X className="w-4 h-4" /> Cancel
+              className="btn-danger flex items-center gap-1.5 text-xs sm:text-sm py-1.5 px-3">
+              <X className="w-3.5 h-3.5" /> Cancel
             </button>
           )}
         </div>
       </div>
 
-      <div className="flex items-center gap-3 mb-6">
-        <h1 className="text-xl font-bold font-mono text-brand-700">{prescription.prescription_code}</h1>
+      <div className="flex flex-wrap items-center gap-2 mb-5">
+        <h1 className="text-base sm:text-xl font-bold font-mono text-brand-700">{prescription.prescription_code}</h1>
         <span className={`status-badge ${statusColors[prescription.status] || 'bg-gray-100 text-gray-600'}`}>
           {prescription.status}
         </span>
-        <span className="text-sm text-gray-400 ml-auto">
-          Created {format(new Date(prescription.created_at), 'dd MMM yyyy, HH:mm')}
+        <span className="text-xs text-gray-400 ml-auto">
+          {format(new Date(prescription.created_at), 'dd MMM yyyy')}
         </span>
       </div>
 
@@ -206,21 +207,21 @@ export default function PrescriptionDetail() {
               Please ask the patient to update their district or wait for a nearby pharmacy to register.
             </div>
           ) : (
-          <div className="flex gap-3">
+          <div className="flex flex-col sm:flex-row gap-3">
             <select className="input flex-1" value={selectedPharmacy}
               onChange={e => setSelectedPharmacy(e.target.value)}>
               <option value="">— Select nearby pharmacy —</option>
               {pharmacies.map(ph => (
                 <option key={ph.id} value={ph.id}>
                   {ph.pharmacy_name} — {ph.city || ph.district}
-                  {ph.id === prescription.preferred_pharmacy_id ? ' ⭐ Patient preferred' : ''}
+                  {ph.id === prescription.preferred_pharmacy_id ? ' ⭐ Preferred' : ''}
                 </option>
               ))}
             </select>
             <button onClick={handleSend} disabled={sending}
-              className="btn-primary flex items-center gap-2 whitespace-nowrap">
+              className="btn-primary flex items-center justify-center gap-2 whitespace-nowrap">
               <Send className="w-4 h-4" />
-              {sending ? 'Sending...' : 'Send'}
+              {sending ? 'Sending...' : 'Send to Pharmacy'}
             </button>
           </div>
           )}
