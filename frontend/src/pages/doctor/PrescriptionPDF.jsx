@@ -5,113 +5,250 @@ import { format } from 'date-fns';
 import { ArrowLeft, Download, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 
-/* ── Build the PDF DOM entirely in JS with inline styles ── */
-function buildPrescriptionDOM(rx) {
-  const wi  = rx.walk_in_patient;
-  const name   = wi ? wi.name   : rx.patient_name;
-  const nic    = wi ? wi.nic    : rx.patient_nic;
-  const mobile = wi ? wi.mobile : rx.patient_mobile;
+/* ─── Pure jsPDF drawing (no html2canvas) ────────────────────────────────── */
+function generatePDF(rx) {
+  const wi            = rx.walk_in_patient;
+  const patientName   = (wi ? wi.name   : rx.patient_name)   || '—';
+  const patientNic    = (wi ? wi.nic    : rx.patient_nic)    || '';
+  const patientMobile = (wi ? wi.mobile : rx.patient_mobile) || '';
+
+  const W  = 100;   // page width  (mm) — narrow for mobile readability
+  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [W, 297] });
+
+  const pad  = 8;
+  const gray = '#6b7280';
+  const green = '#059669';
+  const dark  = '#111827';
+
+  let y = pad;
+
+  // ── helpers ──────────────────────────────────────────────────────
+  const txt = (text, x, yy, { size = 9, color = dark, bold = false, align = 'left', maxW } = {}) => {
+    pdf.setFontSize(size);
+    pdf.setTextColor(color);
+    pdf.setFont('helvetica', bold ? 'bold' : 'normal');
+    if (maxW) {
+      const lines = pdf.splitTextToSize(String(text), maxW);
+      pdf.text(lines, x, yy, { align });
+      return lines.length * (size * 0.35 + 1);   // return height used
+    }
+    pdf.text(String(text), x, yy, { align });
+    return size * 0.35 + 1;
+  };
+
+  const card = (yStart, height, filled = false) => {
+    pdf.setFillColor(filled ? '#f9fafb' : '#ffffff');
+    pdf.setDrawColor('#e5e7eb');
+    pdf.setLineWidth(0.3);
+    pdf.roundedRect(pad, yStart, W - pad * 2, height, 2, 2, filled ? 'FD' : 'D');
+  };
+
+  const section = (label, yy) => {
+    txt(label, pad, yy, { size: 7, color: '#9ca3af', bold: true });
+    return 5;
+  };
+
+  // ── Header ───────────────────────────────────────────────────────
+  txt('CareWeave eRx', pad, y, { size: 13, color: green, bold: true });
+  txt('Ministry of Health Sri Lanka', pad, y + 5, { size: 7, color: gray });
+  txt(rx.prescription_code, W - pad, y, { size: 7, color: green, bold: true, align: 'right' });
 
   const statusBg = rx.status === 'dispensed' ? '#d1fae5' : rx.status === 'sent' ? '#dbeafe' : '#fef3c7';
   const statusFg = rx.status === 'dispensed' ? '#065f46' : rx.status === 'sent' ? '#1e40af' : '#92400e';
+  pdf.setFillColor(statusBg);
+  pdf.roundedRect(W - pad - 20, y + 6, 20, 5, 1, 1, 'F');
+  txt(rx.status.toUpperCase(), W - pad - 10, y + 9.5, { size: 6, color: statusFg, bold: true, align: 'center' });
 
-  const card = `background:#f9fafb;border-radius:12px;padding:14px;margin-bottom:12px;`;
-  const lbl  = `font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;`;
+  y += 14;
+  pdf.setDrawColor(green);
+  pdf.setLineWidth(0.6);
+  pdf.line(pad, y, W - pad, y);
+  y += 5;
 
-  const medicines = (rx.medicines || []).map((m, i) => `
-    <div style="border:1px solid #e5e7eb;border-radius:10px;padding:12px;margin-bottom:8px;background:${i%2===0?'#fff':'#f9fafb'};">
-      <div style="display:flex;justify-content:space-between;">
-        <div>
-          <div style="font-weight:700;font-size:14px;">${m.medicine_name}</div>
-          <div style="font-size:12px;color:#059669;font-weight:600;margin-top:2px;">${m.dosage}</div>
-        </div>
-        <span style="font-size:11px;color:#d1d5db;">#${i+1}</span>
-      </div>
-      <div style="display:flex;gap:16px;margin-top:8px;flex-wrap:wrap;">
-        <div><span style="font-size:10px;color:#9ca3af;">QTY </span><span style="font-size:12px;">${m.quantity}</span></div>
-        <div><span style="font-size:10px;color:#9ca3af;">FREQ </span><span style="font-size:12px;">${m.frequency||'—'}</span></div>
-        <div><span style="font-size:10px;color:#9ca3af;">NOTE </span><span style="font-size:12px;">${m.instructions||'—'}</span></div>
-      </div>
-    </div>`).join('');
+  // ── Doctor ───────────────────────────────────────────────────────
+  y += section('PRESCRIBING DOCTOR', y);
+  const doctorCardY = y; y += 2;
+  txt(`Dr. ${rx.doctor_name}`, pad + 2, y, { size: 9, bold: true });  y += 4.5;
+  txt(`SLMC: ${rx.slmc_number}`, pad + 2, y, { size: 7.5, color: gray }); y += 4;
+  if (rx.specialisation) { txt(rx.specialisation, pad + 2, y, { size: 7.5, color: gray }); y += 4; }
+  if (rx.clinic_name)    { txt(rx.clinic_name,    pad + 2, y, { size: 7.5, color: gray }); y += 4; }
+  card(doctorCardY - 1, y - doctorCardY + 2, true);
+  y += 3;
 
-  const qrSection = rx.qr_code ? `
-    <div style="${card}text-align:center;">
-      <div style="${lbl}">Verification QR</div>
-      <img src="${rx.qr_code}" style="width:120px;height:120px;display:block;margin:0 auto;" crossorigin="anonymous"/>
-    </div>` : '';
+  // ── Patient ──────────────────────────────────────────────────────
+  y += section(`PATIENT${wi ? ' (WALK-IN)' : ''}`, y);
+  const patientCardY = y; y += 2;
+  txt(patientName, pad + 2, y, { size: 9, bold: true }); y += 4.5;
+  if (patientNic)    { txt(`NIC: ${patientNic}`,       pad + 2, y, { size: 7.5, color: gray }); y += 4; }
+  if (patientMobile) { txt(`Mobile: ${patientMobile}`, pad + 2, y, { size: 7.5, color: gray }); y += 4; }
+  card(patientCardY - 1, y - patientCardY + 2, true);
+  y += 3;
 
-  const pharmacySection = rx.pharmacy_name ? `
-    <div style="${card}">
-      <div style="${lbl}">Dispensing Pharmacy</div>
-      <div style="font-weight:700;font-size:14px;">${rx.pharmacy_name}</div>
-      ${rx.pharmacy_address ? `<div style="font-size:12px;color:#6b7280;margin-top:3px;">${rx.pharmacy_address}</div>` : ''}
-      ${rx.dispensed_at ? `<div style="font-size:12px;color:#059669;font-weight:600;margin-top:4px;">Dispensed: ${format(new Date(rx.dispensed_at),'dd MMM yyyy HH:mm')}</div>` : ''}
-    </div>` : '';
+  // ── Clinical Details ─────────────────────────────────────────────
+  y += section('CLINICAL DETAILS', y);
+  const clinCardY = y; y += 2;
+  if (rx.diagnosis) {
+    txt('Diagnosis: ', pad + 2, y, { size: 7.5, color: gray });
+    txt(rx.diagnosis, pad + 22, y, { size: 7.5, bold: true }); y += 4;
+  }
+  txt(`Date: ${format(new Date(rx.created_at), 'dd MMM yyyy')}`,   pad + 2, y, { size: 7.5, color: gray }); y += 4;
+  txt(`Valid until: ${format(new Date(rx.valid_until), 'dd MMM yyyy')}`, pad + 2, y, { size: 7.5, color: gray }); y += 4;
+  if (rx.notes) {
+    const noteLines = pdf.splitTextToSize(`"${rx.notes}"`, W - pad * 2 - 4);
+    pdf.setFontSize(7); pdf.setTextColor(gray); pdf.setFont('helvetica', 'italic');
+    pdf.text(noteLines, pad + 2, y);
+    y += noteLines.length * 3.5 + 1;
+  }
+  card(clinCardY - 1, y - clinCardY + 2, true);
+  y += 3;
 
-  const html = `
-    <div style="font-family:Arial,sans-serif;background:#fff;padding:24px;width:400px;box-sizing:border-box;">
+  // ── Medicines ─────────────────────────────────────────────────────
+  y += section('PRESCRIBED MEDICINES', y);
+  (rx.medicines || []).forEach((med, i) => {
+    const medCardY = y; y += 2;
+    txt(`${i + 1}. ${med.medicine_name}`, pad + 2, y, { size: 8.5, bold: true });
+    txt(med.dosage, W - pad - 2, y, { size: 8, color: green, bold: true, align: 'right' });
+    y += 4.5;
+    txt(`Qty: ${med.quantity}  |  Freq: ${med.frequency || '—'}`, pad + 2, y, { size: 7, color: gray }); y += 3.5;
+    if (med.instructions) {
+      const iLines = pdf.splitTextToSize(`Note: ${med.instructions}`, W - pad * 2 - 4);
+      pdf.setFontSize(7); pdf.setTextColor(gray); pdf.setFont('helvetica', 'normal');
+      pdf.text(iLines, pad + 2, y);
+      y += iLines.length * 3.2 + 0.5;
+    }
+    card(medCardY - 1, y - medCardY + 2, i % 2 === 0);
+    y += 3;
+  });
 
-      <!-- Header -->
-      <div style="border-bottom:2px solid #059669;padding-bottom:14px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:flex-start;">
-        <div>
-          <div style="font-size:18px;font-weight:700;color:#059669;">CareWeave eRx</div>
-          <div style="font-size:10px;color:#6b7280;margin-top:2px;">Ministry of Health Sri Lanka</div>
-        </div>
-        <div style="text-align:right;">
-          <div style="font-size:10px;color:#9ca3af;">Prescription</div>
-          <div style="font-size:11px;font-weight:700;color:#059669;font-family:monospace;">${rx.prescription_code}</div>
-          <span style="display:inline-block;margin-top:4px;font-size:10px;font-weight:600;padding:2px 8px;border-radius:12px;background:${statusBg};color:${statusFg};">${rx.status.toUpperCase()}</span>
-        </div>
-      </div>
+  // ── QR code ──────────────────────────────────────────────────────
+  if (rx.qr_code) {
+    try {
+      y += section('VERIFICATION QR', y);
+      pdf.addImage(rx.qr_code, 'PNG', W / 2 - 15, y, 30, 30);
+      y += 33;
+    } catch (_) {}
+  }
 
-      <!-- Doctor -->
-      <div style="${card}">
-        <div style="${lbl}">Prescribing Doctor</div>
-        <div style="font-weight:700;font-size:14px;">Dr. ${rx.doctor_name}</div>
-        <div style="font-size:12px;color:#6b7280;margin-top:3px;">SLMC: ${rx.slmc_number}</div>
-        ${rx.specialisation ? `<div style="font-size:12px;color:#6b7280;">${rx.specialisation}</div>` : ''}
-        ${rx.clinic_name    ? `<div style="font-size:12px;color:#6b7280;">${rx.clinic_name}</div>` : ''}
-      </div>
+  // ── Pharmacy ─────────────────────────────────────────────────────
+  if (rx.pharmacy_name) {
+    y += section('DISPENSING PHARMACY', y);
+    const phCardY = y; y += 2;
+    txt(rx.pharmacy_name, pad + 2, y, { size: 8.5, bold: true }); y += 4.5;
+    if (rx.pharmacy_address) { txt(rx.pharmacy_address, pad + 2, y, { size: 7.5, color: gray }); y += 4; }
+    if (rx.dispensed_at) { txt(`Dispensed: ${format(new Date(rx.dispensed_at), 'dd MMM yyyy HH:mm')}`, pad + 2, y, { size: 7.5, color: green, bold: true }); y += 4; }
+    card(phCardY - 1, y - phCardY + 2, true);
+    y += 3;
+  }
 
-      <!-- Patient -->
-      <div style="${card}">
-        <div style="${lbl}">Patient${wi?' <span style="color:#f59e0b;">(Walk-in)</span>':''}</div>
-        <div style="font-weight:700;font-size:14px;">${name||'—'}</div>
-        ${nic    ? `<div style="font-size:12px;color:#6b7280;margin-top:3px;">NIC: ${nic}</div>`    : ''}
-        ${mobile ? `<div style="font-size:12px;color:#6b7280;">Mobile: ${mobile}</div>` : ''}
-      </div>
+  // ── Footer ───────────────────────────────────────────────────────
+  y += 2;
+  pdf.setDrawColor('#e5e7eb'); pdf.setLineWidth(0.2);
+  pdf.line(pad, y, W - pad, y); y += 4;
+  txt('Digitally verified prescription · CareWeave eRx', W / 2, y, { size: 6.5, color: '#9ca3af', align: 'center' }); y += 3.5;
+  txt(`careweave-erx.vercel.app · ${rx.prescription_code}`, W / 2, y, { size: 6, color: '#9ca3af', align: 'center' });
 
-      <!-- Clinical -->
-      <div style="${card}">
-        <div style="${lbl}">Clinical Details</div>
-        ${rx.diagnosis ? `<div style="font-size:13px;margin-bottom:4px;"><span style="color:#6b7280;">Diagnosis: </span><strong>${rx.diagnosis}</strong></div>` : ''}
-        <div style="font-size:12px;color:#4b5563;margin-bottom:2px;">Date: ${format(new Date(rx.created_at),'dd MMM yyyy')}</div>
-        <div style="font-size:12px;color:#4b5563;">Valid until: ${format(new Date(rx.valid_until),'dd MMM yyyy')}</div>
-        ${rx.notes ? `<div style="font-size:11px;color:#4b5563;font-style:italic;border-top:1px solid #e5e7eb;padding-top:8px;margin-top:8px;">"${rx.notes}"</div>` : ''}
-      </div>
+  // ── Trim page height ─────────────────────────────────────────────
+  const finalHeight = y + 8;
+  const trimmed = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [W, finalHeight] });
+  // Re-generate into correctly-sized PDF
+  return generatePDFToDoc(rx, W, finalHeight);
+}
 
-      <!-- Medicines -->
-      <div style="margin-bottom:12px;">
-        <div style="${lbl}">Prescribed Medicines</div>
-        ${medicines}
-      </div>
+/* Re-generates into a correctly-sized doc */
+function generatePDFToDoc(rx, W, H) {
+  const wi            = rx.walk_in_patient;
+  const patientName   = (wi ? wi.name   : rx.patient_name)   || '—';
+  const patientNic    = (wi ? wi.nic    : rx.patient_nic)    || '';
+  const patientMobile = (wi ? wi.mobile : rx.patient_mobile) || '';
+  const green = '#059669'; const gray = '#6b7280'; const dark = '#111827';
+  const pad = 8;
 
-      ${qrSection}
-      ${pharmacySection}
+  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [W, H] });
+  let y = pad;
 
-      <!-- Footer -->
-      <div style="border-top:1px solid #e5e7eb;padding-top:12px;text-align:center;margin-top:8px;">
-        <div style="font-size:10px;color:#9ca3af;">Digitally verified prescription · CareWeave eRx</div>
-        <div style="font-size:10px;color:#9ca3af;margin-top:2px;">${rx.prescription_code}</div>
-      </div>
-    </div>`;
+  const txt = (text, x, yy, { size = 9, color = dark, bold = false, align = 'left', maxW } = {}) => {
+    pdf.setFontSize(size); pdf.setTextColor(color); pdf.setFont('helvetica', bold ? 'bold' : 'normal');
+    if (maxW) { const lines = pdf.splitTextToSize(String(text), maxW); pdf.text(lines, x, yy, { align }); return lines.length * (size * 0.35 + 1); }
+    pdf.text(String(text), x, yy, { align }); return size * 0.35 + 1;
+  };
+  const card = (yStart, height, filled = false) => {
+    pdf.setFillColor(filled ? '#f9fafb' : '#ffffff'); pdf.setDrawColor('#e5e7eb'); pdf.setLineWidth(0.3);
+    pdf.roundedRect(pad, yStart, W - pad * 2, height, 2, 2, filled ? 'FD' : 'D');
+  };
+  const section = (label, yy) => { txt(label, pad, yy, { size: 7, color: '#9ca3af', bold: true }); return 5; };
 
-  const wrapper = document.createElement('div');
-  wrapper.style.cssText = 'position:fixed;top:0;left:0;z-index:-9999;pointer-events:none;';
-  wrapper.innerHTML = html;
-  return wrapper;
+  txt('CareWeave eRx', pad, y, { size: 13, color: green, bold: true });
+  txt('Ministry of Health Sri Lanka', pad, y + 5, { size: 7, color: gray });
+  txt(rx.prescription_code, W - pad, y, { size: 7, color: green, bold: true, align: 'right' });
+  const statusBg = rx.status === 'dispensed' ? '#d1fae5' : rx.status === 'sent' ? '#dbeafe' : '#fef3c7';
+  const statusFg = rx.status === 'dispensed' ? '#065f46' : rx.status === 'sent' ? '#1e40af' : '#92400e';
+  pdf.setFillColor(statusBg); pdf.roundedRect(W - pad - 20, y + 6, 20, 5, 1, 1, 'F');
+  txt(rx.status.toUpperCase(), W - pad - 10, y + 9.5, { size: 6, color: statusFg, bold: true, align: 'center' });
+  y += 14; pdf.setDrawColor(green); pdf.setLineWidth(0.6); pdf.line(pad, y, W - pad, y); y += 5;
+
+  y += section('PRESCRIBING DOCTOR', y);
+  const d1 = y; y += 2;
+  txt(`Dr. ${rx.doctor_name}`, pad + 2, y, { size: 9, bold: true }); y += 4.5;
+  txt(`SLMC: ${rx.slmc_number}`, pad + 2, y, { size: 7.5, color: gray }); y += 4;
+  if (rx.specialisation) { txt(rx.specialisation, pad + 2, y, { size: 7.5, color: gray }); y += 4; }
+  if (rx.clinic_name)    { txt(rx.clinic_name,    pad + 2, y, { size: 7.5, color: gray }); y += 4; }
+  card(d1 - 1, y - d1 + 2, true); y += 3;
+
+  y += section(`PATIENT${wi ? ' (WALK-IN)' : ''}`, y);
+  const d2 = y; y += 2;
+  txt(patientName, pad + 2, y, { size: 9, bold: true }); y += 4.5;
+  if (patientNic)    { txt(`NIC: ${patientNic}`,       pad + 2, y, { size: 7.5, color: gray }); y += 4; }
+  if (patientMobile) { txt(`Mobile: ${patientMobile}`, pad + 2, y, { size: 7.5, color: gray }); y += 4; }
+  card(d2 - 1, y - d2 + 2, true); y += 3;
+
+  y += section('CLINICAL DETAILS', y);
+  const d3 = y; y += 2;
+  if (rx.diagnosis) { txt('Diagnosis: ', pad + 2, y, { size: 7.5, color: gray }); txt(rx.diagnosis, pad + 22, y, { size: 7.5, bold: true }); y += 4; }
+  txt(`Date: ${format(new Date(rx.created_at), 'dd MMM yyyy')}`,        pad + 2, y, { size: 7.5, color: gray }); y += 4;
+  txt(`Valid until: ${format(new Date(rx.valid_until), 'dd MMM yyyy')}`, pad + 2, y, { size: 7.5, color: gray }); y += 4;
+  if (rx.notes) {
+    const nl = pdf.splitTextToSize(`"${rx.notes}"`, W - pad * 2 - 4);
+    pdf.setFontSize(7); pdf.setTextColor(gray); pdf.setFont('helvetica', 'italic');
+    pdf.text(nl, pad + 2, y); y += nl.length * 3.5 + 1;
+  }
+  card(d3 - 1, y - d3 + 2, true); y += 3;
+
+  y += section('PRESCRIBED MEDICINES', y);
+  (rx.medicines || []).forEach((med, i) => {
+    const dm = y; y += 2;
+    txt(`${i + 1}. ${med.medicine_name}`, pad + 2, y, { size: 8.5, bold: true });
+    txt(med.dosage, W - pad - 2, y, { size: 8, color: green, bold: true, align: 'right' }); y += 4.5;
+    txt(`Qty: ${med.quantity}  |  Freq: ${med.frequency || '—'}`, pad + 2, y, { size: 7, color: gray }); y += 3.5;
+    if (med.instructions) {
+      const il = pdf.splitTextToSize(`Note: ${med.instructions}`, W - pad * 2 - 4);
+      pdf.setFontSize(7); pdf.setTextColor(gray); pdf.setFont('helvetica', 'normal');
+      pdf.text(il, pad + 2, y); y += il.length * 3.2 + 0.5;
+    }
+    card(dm - 1, y - dm + 2, i % 2 === 0); y += 3;
+  });
+
+  if (rx.qr_code) {
+    try {
+      y += section('VERIFICATION QR', y);
+      pdf.addImage(rx.qr_code, 'PNG', W / 2 - 15, y, 30, 30); y += 33;
+    } catch (_) {}
+  }
+
+  if (rx.pharmacy_name) {
+    y += section('DISPENSING PHARMACY', y);
+    const dp = y; y += 2;
+    txt(rx.pharmacy_name, pad + 2, y, { size: 8.5, bold: true }); y += 4.5;
+    if (rx.pharmacy_address) { txt(rx.pharmacy_address, pad + 2, y, { size: 7.5, color: gray }); y += 4; }
+    if (rx.dispensed_at) { txt(`Dispensed: ${format(new Date(rx.dispensed_at), 'dd MMM yyyy HH:mm')}`, pad + 2, y, { size: 7.5, color: green, bold: true }); y += 4; }
+    card(dp - 1, y - dp + 2, true); y += 3;
+  }
+
+  y += 2; pdf.setDrawColor('#e5e7eb'); pdf.setLineWidth(0.2); pdf.line(pad, y, W - pad, y); y += 4;
+  txt('Digitally verified prescription · CareWeave eRx', W / 2, y, { size: 6.5, color: '#9ca3af', align: 'center' }); y += 3.5;
+  txt(`careweave-erx.vercel.app · ${rx.prescription_code}`, W / 2, y, { size: 6, color: '#9ca3af', align: 'center' });
+
+  return pdf;
 }
 
 /* ─── Main page ─────────────────────────────────────────────────────────── */
@@ -132,29 +269,9 @@ export default function PrescriptionPDF() {
   const handleDownload = async () => {
     setGenerating(true);
     try {
-      // Build DOM node with pure inline styles (no Tailwind dependency)
-      const node = buildPrescriptionDOM(prescription);
-      document.body.appendChild(node);
-
-      // Wait a tick for images to load
-      await new Promise(r => setTimeout(r, 300));
-
-      const el = node.firstElementChild;
-      const canvas = await html2canvas(el, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: '#ffffff',
-        logging: false,
-      });
-
-      document.body.removeChild(node);
-
-      const pxW = canvas.width  / 2;
-      const pxH = canvas.height / 2;
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'px', format: [pxW, pxH] });
-      pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, pxW, pxH);
-      pdf.save(`CareWeave_Rx_${prescription.prescription_code}.pdf`);
+      // First pass: measure content height
+      const draft = generatePDF(prescription);
+      draft.save(`CareWeave_Rx_${prescription.prescription_code}.pdf`);
       toast.success('PDF downloaded!');
     } catch (err) {
       console.error(err);
@@ -184,7 +301,6 @@ export default function PrescriptionPDF() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-
       {/* Top bar */}
       <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-3 shadow-sm">
         <button onClick={() => navigate(-1)}
@@ -203,23 +319,16 @@ export default function PrescriptionPDF() {
         </button>
       </div>
 
-      {/* ── Mobile preview (just for display — PDF uses inline-styled DOM) ── */}
-      <div className="max-w-lg mx-auto py-5 px-4 space-y-3 font-sans">
-
+      {/* Mobile preview */}
+      <div className="max-w-lg mx-auto py-5 px-4 space-y-3">
         <div className="flex items-start justify-between border-b-2 border-green-600 pb-3">
-          <div>
-            <h1 className="text-base font-bold text-green-700">CareWeave eRx</h1>
-            <p className="text-xs text-gray-400">Ministry of Health Sri Lanka</p>
-          </div>
+          <div><h1 className="text-base font-bold text-green-700">CareWeave eRx</h1><p className="text-xs text-gray-400">Ministry of Health Sri Lanka</p></div>
           <div className="text-right shrink-0 ml-2">
             <p className="text-xs text-gray-400">Prescription</p>
             <p className="text-xs font-bold text-green-700 font-mono">{prescription.prescription_code}</p>
-            <span className={`inline-block mt-1 text-xs font-semibold px-2 py-0.5 rounded-full ${statusColor}`}>
-              {prescription.status.toUpperCase()}
-            </span>
+            <span className={`inline-block mt-1 text-xs font-semibold px-2 py-0.5 rounded-full ${statusColor}`}>{prescription.status.toUpperCase()}</span>
           </div>
         </div>
-
         <div className="bg-white rounded-2xl p-3 shadow-sm">
           <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1.5">Prescribing Doctor</p>
           <p className="font-bold text-sm">Dr. {prescription.doctor_name}</p>
@@ -227,14 +336,12 @@ export default function PrescriptionPDF() {
           {prescription.specialisation && <p className="text-xs text-gray-500">{prescription.specialisation}</p>}
           {prescription.clinic_name    && <p className="text-xs text-gray-500">{prescription.clinic_name}</p>}
         </div>
-
         <div className="bg-white rounded-2xl p-3 shadow-sm">
           <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1.5">Patient {wi && <span className="text-yellow-600">(Walk-in)</span>}</p>
           <p className="font-bold text-sm">{patientName || '—'}</p>
           {patientNic    && <p className="text-xs text-gray-500">NIC: {patientNic}</p>}
           {patientMobile && <p className="text-xs text-gray-500">Mobile: {patientMobile}</p>}
         </div>
-
         <div className="bg-white rounded-2xl p-3 shadow-sm">
           <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1.5">Clinical Details</p>
           {prescription.diagnosis && <p className="text-sm mb-1"><span className="text-gray-400 text-xs">Diagnosis: </span><strong>{prescription.diagnosis}</strong></p>}
@@ -242,36 +349,23 @@ export default function PrescriptionPDF() {
           <p className="text-xs text-gray-500">Valid until: {format(new Date(prescription.valid_until), 'dd MMM yyyy')}</p>
           {prescription.notes && <p className="text-xs text-gray-500 italic mt-2 pt-2 border-t border-gray-100">"{prescription.notes}"</p>}
         </div>
-
         <div>
           <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Prescribed Medicines</p>
           <div className="space-y-2">
             {prescription.medicines?.map((med, i) => (
               <div key={i} className="bg-white rounded-2xl p-3 shadow-sm">
-                <div className="flex justify-between">
-                  <div>
-                    <p className="font-semibold text-sm">{med.medicine_name}</p>
-                    <p className="text-xs font-semibold text-green-700">{med.dosage}</p>
-                  </div>
-                  <span className="text-xs text-gray-300">#{i+1}</span>
-                </div>
-                <div className="flex gap-4 mt-2 text-xs flex-wrap">
-                  <div><span className="text-gray-400">Qty </span>{med.quantity}</div>
-                  <div><span className="text-gray-400">Freq </span>{med.frequency||'—'}</div>
-                  <div className="flex-1"><span className="text-gray-400">Note </span>{med.instructions||'—'}</div>
-                </div>
+                <div className="flex justify-between"><div><p className="font-semibold text-sm">{med.medicine_name}</p><p className="text-xs font-semibold text-green-700">{med.dosage}</p></div><span className="text-xs text-gray-300">#{i+1}</span></div>
+                <div className="flex gap-4 mt-2 text-xs flex-wrap"><div><span className="text-gray-400">Qty </span>{med.quantity}</div><div><span className="text-gray-400">Freq </span>{med.frequency||'—'}</div><div className="flex-1"><span className="text-gray-400">Note </span>{med.instructions||'—'}</div></div>
               </div>
             ))}
           </div>
         </div>
-
         {prescription.qr_code && (
           <div className="bg-white rounded-2xl p-3 shadow-sm text-center">
             <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Verification QR</p>
             <img src={prescription.qr_code} alt="QR" className="w-28 h-28 mx-auto" />
           </div>
         )}
-
         {prescription.pharmacy_name && (
           <div className="bg-white rounded-2xl p-3 shadow-sm">
             <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1.5">Dispensing Pharmacy</p>
@@ -280,7 +374,6 @@ export default function PrescriptionPDF() {
             {prescription.dispensed_at && <p className="text-xs text-green-700 font-semibold mt-1">Dispensed: {format(new Date(prescription.dispensed_at),'dd MMM yyyy HH:mm')}</p>}
           </div>
         )}
-
         <p className="text-center text-xs text-gray-400 pb-4">CareWeave eRx · Ministry of Health Sri Lanka</p>
       </div>
     </div>
