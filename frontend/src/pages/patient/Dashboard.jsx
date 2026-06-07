@@ -205,14 +205,14 @@ export default function PatientDashboard() {
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
   const tabs = [
-    { key: 'today', label: 'Today\'s Meds', icon: AlarmClock },
-    { key: 'tracker', label: 'Track Prescription', icon: Navigation },
-    { key: 'dashboard', label: 'Dashboard', icon: Activity },
-    { key: 'prescriptions', label: 'Prescriptions', icon: FileText },
-    { key: 'medicines', label: 'Medicines', icon: Pill },
-    { key: 'doctors', label: 'My Doctors', icon: Stethoscope },
-    { key: 'notifications', label: `Alerts${unreadCount > 0 ? ` (${unreadCount})` : ''}`, icon: Bell },
-    { key: 'pharmacy', label: 'Pharmacy', icon: MapPin },
+    { key: 'today',         label: "Today's Meds",                                     icon: AlarmClock },
+    { key: 'tracker',       label: 'Track Rx',                                          icon: Navigation },
+    { key: 'dashboard',     label: 'Overview',                                          icon: Activity },
+    { key: 'prescriptions', label: 'Prescriptions',                                     icon: FileText },
+    { key: 'medicines',     label: 'Medicines',                                         icon: Pill },
+    { key: 'doctors',       label: 'My Doctors',                                        icon: Stethoscope },
+    { key: 'notifications', label: unreadCount > 0 ? `Alerts (${unreadCount})` : 'Alerts', icon: Bell },
+    { key: 'pharmacy',      label: 'Pharmacy',                                          icon: MapPin },
   ];
 
   if (loading) return <div className="p-8 text-center text-gray-400">Loading...</div>;
@@ -238,14 +238,14 @@ export default function PatientDashboard() {
         </button>
       </div>
 
-      {/* Tabs - scrollable on mobile */}
-      <div className="flex gap-1 mb-5 border-b border-gray-100 overflow-x-auto pb-0 scrollbar-hide">
+      {/* Tabs - scrollable on mobile, pr-6 ensures last tab isn't clipped */}
+      <div className="flex gap-0.5 mb-5 border-b border-gray-100 overflow-x-auto pb-0 scrollbar-hide pr-6">
         {tabs.map(t => (
           <button key={t.key} onClick={() => setTab(t.key)}
-            className={`flex items-center gap-1.5 px-3 py-2.5 text-xs sm:text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
+            className={`flex items-center gap-1 px-2.5 py-2.5 text-xs font-medium border-b-2 whitespace-nowrap transition-colors shrink-0 ${
               tab === t.key ? 'border-brand-600 text-brand-700' : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}>
-            <t.icon className="w-3.5 h-3.5" /> {t.label}
+            <t.icon className="w-3.5 h-3.5 shrink-0" /> {t.label}
           </button>
         ))}
       </div>
