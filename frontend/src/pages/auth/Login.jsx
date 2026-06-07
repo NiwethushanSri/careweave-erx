@@ -213,18 +213,18 @@ export default function Login() {
       }} />
 
       {/* Content */}
-      <div className="flex-1 flex items-center justify-center p-4"
+      <div className="flex-1 flex items-center justify-center px-4 py-6"
         style={{ position: 'relative', zIndex: 2 }}>
-        <div className="w-full max-w-md">
+        <div className="w-full max-w-sm">
 
           {/* Logo */}
-          <div className="flex justify-center mb-3">
+          <div className="flex justify-center mb-4">
             <img src="/logo.png" alt="CareWeave eRx"
-              style={{ height: '80px', objectFit: 'contain', filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.18))' }} />
+              style={{ height: '70px', objectFit: 'contain', filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.18))' }} />
           </div>
 
           {/* Login card */}
-          <div className="card p-6" style={{ background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(8px)' }}>
+          <div className="card p-5 sm:p-6" style={{ background: 'rgba(255,255,255,0.97)', backdropFilter: 'blur(8px)' }}>
             <h2 className="text-lg font-semibold mb-6">Sign in to your account</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
@@ -282,9 +282,9 @@ export default function Login() {
         {chatOpen ? <X size={22} color="white" /> : <MessageCircle size={22} color="white" />}
       </button>
 
-      {/* Chatbot tooltip */}
+      {/* Chatbot tooltip - hidden on mobile */}
       {!chatOpen && (
-        <div style={{
+        <div className="hidden sm:block" style={{
           position: 'fixed', bottom: '118px', right: '16px', zIndex: 99,
           background: '#059669', color: 'white', fontSize: '12px',
           padding: '4px 10px', borderRadius: '20px', whiteSpace: 'nowrap',
