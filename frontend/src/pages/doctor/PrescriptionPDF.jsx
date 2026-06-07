@@ -1,15 +1,19 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import api from '../../utils/api';
 import { format } from 'date-fns';
-import { ArrowLeft, Download } from 'lucide-react';
+import { ArrowLeft, Download, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 export default function PrescriptionPDF() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const contentRef = useRef(null);
   const [prescription, setPrescription] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
 
   useEffect(() => {
     api.get(`/prescriptions/${id}`)
@@ -18,204 +22,199 @@ export default function PrescriptionPDF() {
       .finally(() => setLoading(false));
   }, [id]);
 
-  const handlePrint = () => window.print();
+  const handleDownload = async () => {
+    if (!contentRef.current) return;
+    setGenerating(true);
+    try {
+      const canvas = await html2canvas(contentRef.current, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+      });
 
-  if (loading) return <div className="p-8 text-center text-gray-400">Loading...</div>;
-  if (!prescription) return <div className="p-8 text-center text-gray-400">Not found</div>;
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+      const pageW = pdf.internal.pageSize.getWidth();
+      const pageH = pdf.internal.pageSize.getHeight();
+      const imgW = pageW;
+      const imgH = (canvas.height * imgW) / canvas.width;
+
+      // If content taller than one page, split across pages
+      let yOffset = 0;
+      let remaining = imgH;
+      while (remaining > 0) {
+        pdf.addImage(imgData, 'PNG', 0, -yOffset, imgW, imgH);
+        remaining -= pageH;
+        yOffset += pageH;
+        if (remaining > 0) pdf.addPage();
+      }
+
+      pdf.save(`CareWeave_Rx_${prescription.prescription_code}.pdf`);
+      toast.success('PDF downloaded!');
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to generate PDF');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  if (loading) return (
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="text-center">
+        <Loader2 className="w-8 h-8 text-brand-600 animate-spin mx-auto mb-2" />
+        <p className="text-gray-400 text-sm">Loading prescription...</p>
+      </div>
+    </div>
+  );
+  if (!prescription) return <div className="p-8 text-center text-gray-400">Prescription not found</div>;
 
   const wi = prescription.walk_in_patient;
-  const patientName   = wi ? wi.name  : prescription.patient_name;
-  const patientNic    = wi ? wi.nic   : prescription.patient_nic;
-  const patientMobile = wi ? wi.mobile: prescription.patient_mobile;
+  const patientName   = wi ? wi.name   : prescription.patient_name;
+  const patientNic    = wi ? wi.nic    : prescription.patient_nic;
+  const patientMobile = wi ? wi.mobile : prescription.patient_mobile;
 
   return (
-    <div>
-      {/* Print controls — hidden when printing */}
-      <div className="print:hidden p-4 flex items-center gap-3 border-b border-gray-100 bg-white sticky top-0 z-10">
+    <div className="min-h-screen bg-gray-50">
+      {/* Top bar */}
+      <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-3 shadow-sm">
         <button onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-gray-500 hover:text-gray-700 text-sm">
+          className="flex items-center gap-1.5 text-gray-500 hover:text-gray-800 text-sm font-medium">
           <ArrowLeft className="w-4 h-4" /> Back
         </button>
-        <button onClick={handlePrint}
-          className="btn-primary flex items-center gap-2 text-sm ml-auto">
-          <Download className="w-4 h-4" /> Download / Print PDF
+
+        <div className="flex-1 text-center">
+          <p className="text-xs text-gray-400 font-mono">{prescription.prescription_code}</p>
+        </div>
+
+        <button
+          onClick={handleDownload}
+          disabled={generating}
+          className="flex items-center gap-2 bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors shadow-sm"
+        >
+          {generating
+            ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating…</>
+            : <><Download className="w-4 h-4" /> Download PDF</>}
         </button>
       </div>
 
-      {/* PDF Content */}
-      <div className="max-w-2xl mx-auto px-4 py-6 sm:p-8 bg-white" id="prescription-pdf">
+      {/* Prescription content — this is what gets captured */}
+      <div className="max-w-2xl mx-auto py-6 px-4">
+        <div ref={contentRef}
+          className="bg-white rounded-2xl shadow-sm p-6 sm:p-8"
+          style={{ fontFamily: 'Inter, sans-serif' }}>
 
-        {/* ── Header ───────────────────────────────────────────── */}
-        <div className="border-b-2 border-green-600 pb-4 mb-5">
-          <div className="flex items-start justify-between gap-3 flex-wrap">
+          {/* ── Header ── */}
+          <div className="flex items-start justify-between gap-4 pb-4 mb-5 border-b-2 border-green-600">
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-green-700">CareWeave eRx</h1>
-              <p className="text-xs text-gray-500">Ministry of Health Sri Lanka · Digital Prescription Platform</p>
+              <h1 className="text-2xl font-bold text-green-700">CareWeave eRx</h1>
+              <p className="text-xs text-gray-500 mt-0.5">Ministry of Health Sri Lanka · Digital Prescription Platform</p>
             </div>
-            <div className="text-right">
-              <p className="text-xs text-gray-400">Prescription Code</p>
-              <p className="text-base sm:text-lg font-mono font-bold text-green-700 break-all">
-                {prescription.prescription_code}
-              </p>
-              <span className={`inline-block text-xs px-2 py-0.5 rounded-full font-medium mt-1 ${
+            <div className="text-right shrink-0">
+              <p className="text-xs text-gray-400">Prescription</p>
+              <p className="text-base font-mono font-bold text-green-700">{prescription.prescription_code}</p>
+              <span className={`inline-block text-xs px-2 py-0.5 rounded-full font-semibold mt-1 ${
                 prescription.status === 'dispensed' ? 'bg-green-100 text-green-700' :
                 prescription.status === 'sent'      ? 'bg-blue-100 text-blue-700' :
                 'bg-yellow-100 text-yellow-700'
               }`}>{prescription.status.toUpperCase()}</span>
             </div>
           </div>
-        </div>
 
-        {/* ── Doctor & Patient ─────────────────────────────────── */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
-          <div className="border border-gray-200 rounded-lg p-3 sm:p-4">
-            <h3 className="text-xs font-semibold text-gray-400 uppercase mb-2">Prescribing Doctor</h3>
-            <p className="font-semibold text-sm">Dr. {prescription.doctor_name}</p>
-            <p className="text-xs text-gray-600">SLMC: {prescription.slmc_number}</p>
-            {prescription.specialisation && <p className="text-xs text-gray-600">{prescription.specialisation}</p>}
-            {prescription.clinic_name && <p className="text-xs text-gray-600">{prescription.clinic_name}</p>}
+          {/* ── Doctor & Patient ── */}
+          <div className="grid grid-cols-2 gap-4 mb-5">
+            <div className="border border-gray-200 rounded-xl p-3">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Prescribing Doctor</p>
+              <p className="font-semibold text-sm">Dr. {prescription.doctor_name}</p>
+              <p className="text-xs text-gray-500">SLMC: {prescription.slmc_number}</p>
+              {prescription.specialisation && <p className="text-xs text-gray-500">{prescription.specialisation}</p>}
+              {prescription.clinic_name    && <p className="text-xs text-gray-500">{prescription.clinic_name}</p>}
+            </div>
+            <div className="border border-gray-200 rounded-xl p-3">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5">
+                Patient {wi && <span className="text-amber-500">(Walk-in)</span>}
+              </p>
+              <p className="font-semibold text-sm">{patientName || '—'}</p>
+              {patientNic    && <p className="text-xs text-gray-500">NIC: {patientNic}</p>}
+              {patientMobile && <p className="text-xs text-gray-500">Mobile: {patientMobile}</p>}
+            </div>
           </div>
-          <div className="border border-gray-200 rounded-lg p-3 sm:p-4">
-            <h3 className="text-xs font-semibold text-gray-400 uppercase mb-2">
-              Patient {wi && <span className="text-amber-500">(Walk-in)</span>}
-            </h3>
-            <p className="font-semibold text-sm">{patientName || '—'}</p>
-            {patientNic    && <p className="text-xs text-gray-600">NIC: {patientNic}</p>}
-            {patientMobile && <p className="text-xs text-gray-600">Mobile: {patientMobile}</p>}
-          </div>
-        </div>
 
-        {/* ── Clinical Details ─────────────────────────────────── */}
-        <div className="border border-gray-200 rounded-lg p-3 sm:p-4 mb-5">
-          <h3 className="text-xs font-semibold text-gray-400 uppercase mb-2">Clinical Details</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-xs sm:text-sm">
-            {prescription.diagnosis && (
-              <div>
-                <span className="text-gray-500">Diagnosis: </span>
-                <span className="font-medium">{prescription.diagnosis}</span>
-              </div>
+          {/* ── Clinical Details ── */}
+          <div className="border border-gray-200 rounded-xl p-3 mb-5">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Clinical Details</p>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              {prescription.diagnosis && (
+                <div><span className="text-gray-500">Diagnosis: </span><span className="font-semibold">{prescription.diagnosis}</span></div>
+              )}
+              <div><span className="text-gray-500">Date: </span>{format(new Date(prescription.created_at), 'dd MMM yyyy')}</div>
+              <div><span className="text-gray-500">Valid until: </span>{format(new Date(prescription.valid_until), 'dd MMM yyyy')}</div>
+            </div>
+            {prescription.notes && (
+              <p className="text-xs text-gray-600 mt-2 italic border-t border-gray-100 pt-2">"{prescription.notes}"</p>
             )}
-            <div><span className="text-gray-500">Date: </span>{format(new Date(prescription.created_at), 'dd MMM yyyy')}</div>
-            <div><span className="text-gray-500">Valid until: </span>{format(new Date(prescription.valid_until), 'dd MMM yyyy')}</div>
-          </div>
-          {prescription.notes && (
-            <p className="text-xs sm:text-sm text-gray-600 mt-2 italic">"{prescription.notes}"</p>
-          )}
-        </div>
-
-        {/* ── Medicines ────────────────────────────────────────── */}
-        <div className="mb-5">
-          <h3 className="text-xs font-semibold text-gray-400 uppercase mb-3">Prescribed Medicines</h3>
-
-          {/* Mobile: stacked cards (hidden when printing) */}
-          <div className="sm:hidden print:hidden space-y-3">
-            {prescription.medicines?.map((med, i) => (
-              <div key={i} className="border border-gray-200 rounded-xl p-3 bg-gray-50">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-full bg-green-100 text-green-700 text-xs font-bold flex items-center justify-center shrink-0">
-                      {i + 1}
-                    </span>
-                    <p className="font-semibold text-sm text-gray-900">{med.medicine_name}</p>
-                  </div>
-                  <span className="text-sm font-bold text-green-700 bg-green-50 px-2 py-0.5 rounded-lg shrink-0">
-                    {med.dosage}
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 gap-2 text-xs mt-2">
-                  <div className="bg-white rounded-lg p-2 border border-gray-100">
-                    <p className="text-gray-400">Quantity</p>
-                    <p className="font-semibold text-gray-800 mt-0.5">{med.quantity} tablet{med.quantity > 1 ? 's' : ''}</p>
-                  </div>
-                  <div className="bg-white rounded-lg p-2 border border-gray-100">
-                    <p className="text-gray-400">Frequency</p>
-                    <p className="font-semibold text-gray-800 mt-0.5">{med.frequency || '—'}</p>
-                  </div>
-                  {med.duration && (
-                    <div className="bg-white rounded-lg p-2 border border-gray-100">
-                      <p className="text-gray-400">Duration</p>
-                      <p className="font-semibold text-gray-800 mt-0.5">{med.duration}</p>
-                    </div>
-                  )}
-                  {med.instructions && (
-                    <div className="bg-green-50 rounded-lg p-2 border border-green-100 col-span-2">
-                      <p className="text-green-500">Instructions</p>
-                      <p className="font-medium text-green-800 mt-0.5">{med.instructions}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
           </div>
 
-          {/* Desktop + Print: table */}
-          <div className="hidden sm:block print:block">
-            <table className="w-full text-sm border border-gray-200 rounded-lg overflow-hidden">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="text-left p-3 font-medium text-gray-600 w-8">#</th>
-                  <th className="text-left p-3 font-medium text-gray-600">Medicine</th>
-                  <th className="text-left p-3 font-medium text-gray-600">Dosage</th>
-                  <th className="text-left p-3 font-medium text-gray-600">Qty</th>
-                  <th className="text-left p-3 font-medium text-gray-600">Frequency</th>
-                  <th className="text-left p-3 font-medium text-gray-600">Instructions</th>
+          {/* ── Medicines ── */}
+          <div className="mb-5">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Prescribed Medicines</p>
+            <table className="w-full text-xs border border-gray-200 rounded-xl overflow-hidden">
+              <thead>
+                <tr className="bg-gray-50">
+                  <th className="text-left px-3 py-2 font-semibold text-gray-600 w-6">#</th>
+                  <th className="text-left px-3 py-2 font-semibold text-gray-600">Medicine</th>
+                  <th className="text-left px-3 py-2 font-semibold text-gray-600">Dosage</th>
+                  <th className="text-left px-3 py-2 font-semibold text-gray-600">Qty</th>
+                  <th className="text-left px-3 py-2 font-semibold text-gray-600">Frequency</th>
+                  <th className="text-left px-3 py-2 font-semibold text-gray-600">Instructions</th>
                 </tr>
               </thead>
               <tbody>
                 {prescription.medicines?.map((med, i) => (
-                  <tr key={i} className="border-t border-gray-100">
-                    <td className="p-3 text-gray-500">{i + 1}</td>
-                    <td className="p-3 font-medium">{med.medicine_name}</td>
-                    <td className="p-3">{med.dosage}</td>
-                    <td className="p-3">{med.quantity}</td>
-                    <td className="p-3 text-gray-600">{med.frequency || '—'}</td>
-                    <td className="p-3 text-gray-600">{med.instructions || '—'}</td>
+                  <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}>
+                    <td className="px-3 py-2 text-gray-400">{i + 1}</td>
+                    <td className="px-3 py-2 font-semibold text-gray-900">{med.medicine_name}</td>
+                    <td className="px-3 py-2 text-green-700 font-semibold">{med.dosage}</td>
+                    <td className="px-3 py-2 text-gray-600">{med.quantity}</td>
+                    <td className="px-3 py-2 text-gray-600">{med.frequency || '—'}</td>
+                    <td className="px-3 py-2 text-gray-600">{med.instructions || '—'}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        </div>
 
-        {/* ── QR + Pharmacy ────────────────────────────────────── */}
-        <div className="grid grid-cols-2 gap-3 sm:gap-6 mb-5">
-          {prescription.qr_code && (
-            <div className="border border-gray-200 rounded-lg p-3 sm:p-4 text-center">
-              <h3 className="text-xs font-semibold text-gray-400 uppercase mb-2">Verification QR</h3>
-              <img src={prescription.qr_code} alt="QR"
-                className="w-24 h-24 sm:w-32 sm:h-32 mx-auto" />
-            </div>
-          )}
-          {prescription.pharmacy_name && (
-            <div className="border border-gray-200 rounded-lg p-3 sm:p-4">
-              <h3 className="text-xs font-semibold text-gray-400 uppercase mb-2">Dispensing Pharmacy</h3>
-              <p className="font-medium text-sm">{prescription.pharmacy_name}</p>
-              {prescription.pharmacy_address && (
-                <p className="text-xs text-gray-600 mt-0.5">{prescription.pharmacy_address}</p>
-              )}
-              {prescription.dispensed_at && (
-                <p className="text-xs text-green-600 mt-1 font-medium">
-                  Dispensed: {format(new Date(prescription.dispensed_at), 'dd MMM yyyy HH:mm')}
-                </p>
-              )}
-            </div>
-          )}
-        </div>
+          {/* ── QR + Pharmacy ── */}
+          <div className="grid grid-cols-2 gap-4 mb-5">
+            {prescription.qr_code && (
+              <div className="border border-gray-200 rounded-xl p-3 text-center">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Verification QR</p>
+                <img src={prescription.qr_code} alt="QR Code" className="w-28 h-28 mx-auto" />
+              </div>
+            )}
+            {prescription.pharmacy_name && (
+              <div className="border border-gray-200 rounded-xl p-3">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Dispensing Pharmacy</p>
+                <p className="font-semibold text-sm">{prescription.pharmacy_name}</p>
+                {prescription.pharmacy_address && <p className="text-xs text-gray-500 mt-0.5">{prescription.pharmacy_address}</p>}
+                {prescription.dispensed_at && (
+                  <p className="text-xs text-green-600 mt-1 font-medium">
+                    Dispensed: {format(new Date(prescription.dispensed_at), 'dd MMM yyyy HH:mm')}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
 
-        {/* ── Footer ───────────────────────────────────────────── */}
-        <div className="border-t border-gray-200 pt-4 text-center">
-          <p className="text-xs text-gray-400">This is a digitally verified prescription generated by CareWeave eRx</p>
-          <p className="text-xs text-gray-400">careweave-erx.vercel.app · Ministry of Health Sri Lanka · {prescription.prescription_code}</p>
+          {/* ── Footer ── */}
+          <div className="border-t border-gray-200 pt-3 text-center">
+            <p className="text-xs text-gray-400">This is a digitally verified prescription generated by CareWeave eRx</p>
+            <p className="text-xs text-gray-400 mt-0.5">careweave-erx.vercel.app · Ministry of Health Sri Lanka · {prescription.prescription_code}</p>
+          </div>
         </div>
       </div>
-
-      <style>{`
-        @media print {
-          body * { visibility: hidden; }
-          #prescription-pdf, #prescription-pdf * { visibility: visible; }
-          #prescription-pdf { position: absolute; left: 0; top: 0; width: 100%; padding: 20px; }
-        }
-      `}</style>
     </div>
   );
 }
