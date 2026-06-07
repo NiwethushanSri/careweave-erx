@@ -1,8 +1,73 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
-import { CheckCircle2, Circle, X, AlertTriangle, Clock, Pill, ChevronDown, ChevronUp, StopCircle } from 'lucide-react';
+import { CheckCircle2, Circle, X, AlertTriangle, Pill, ChevronDown, ChevronUp, StopCircle, Heart } from 'lucide-react';
+
+// ── Motivational messages shown after marking a dose ──────────────────────
+const MOTIVATIONAL = [
+  { emoji: '💚', msg: "Great job! You're one step closer to feeling better.", sub: "Keep it up — every dose counts!" },
+  { emoji: '🌟', msg: "Well done! You're healing beautifully.", sub: "Stay consistent and you'll feel great soon!" },
+  { emoji: '💪', msg: "That's the spirit! Your body is working hard for you.", sub: "You're doing amazing. Keep going!" },
+  { emoji: '🌸', msg: "Don't worry — everything will be alright soon.", sub: "Taking your medicine is the best thing you can do right now." },
+  { emoji: '☀️', msg: "Wonderful! Every dose brings you closer to health.", sub: "You've got this. Brighter days ahead!" },
+  { emoji: '🌿', msg: "Your healing journey is on track!", sub: "Small steps every day lead to big recovery." },
+  { emoji: '🦋', msg: "You're doing brilliantly — keep it up!", sub: "Health is wealth, and you're investing in yourself." },
+  { emoji: '✨', msg: "Stay strong — you're getting better each day!", sub: "Your consistency is your superpower." },
+  { emoji: '🌈', msg: "Proud of you! Dose taken, healing activated.", sub: "Rest well, eat well, and trust the process." },
+  { emoji: '❤️', msg: "Your health matters — and so do you!", sub: "We're cheering for your speedy recovery." },
+];
+
+function MotivationalPopup({ onClose }) {
+  const msg = MOTIVATIONAL[Math.floor(Math.random() * MOTIVATIONAL.length)];
+  const timerRef = useRef(null);
+
+  useEffect(() => {
+    timerRef.current = setTimeout(onClose, 3500);
+    return () => clearTimeout(timerRef.current);
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-6 pointer-events-none">
+      {/* Backdrop — dim but tappable-through */}
+      <div className="absolute inset-0 bg-black/20 pointer-events-auto" onClick={onClose} />
+
+      {/* Card */}
+      <div className="relative pointer-events-auto bg-white rounded-3xl shadow-2xl p-7 max-w-xs w-full text-center animate-[bounceIn_0.4s_ease-out]">
+        {/* Close */}
+        <button onClick={onClose} className="absolute top-3 right-3 text-gray-300 hover:text-gray-500">
+          <X className="w-5 h-5" />
+        </button>
+
+        {/* Pulsing heart ring */}
+        <div className="relative mx-auto w-20 h-20 mb-4 flex items-center justify-center">
+          <div className="absolute inset-0 rounded-full bg-green-100 animate-ping opacity-40" />
+          <div className="absolute inset-2 rounded-full bg-green-200 opacity-60" />
+          <div className="relative w-16 h-16 rounded-full bg-green-500 flex items-center justify-center shadow-lg">
+            <CheckCircle2 className="w-8 h-8 text-white" />
+          </div>
+        </div>
+
+        {/* Emoji */}
+        <div className="text-4xl mb-2">{msg.emoji}</div>
+
+        {/* Messages */}
+        <h3 className="text-gray-900 font-bold text-base leading-snug mb-1">{msg.msg}</h3>
+        <p className="text-gray-500 text-sm">{msg.sub}</p>
+
+        {/* Progress dots (decorative) */}
+        <div className="flex items-center justify-center gap-1.5 mt-4">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className={`h-1.5 rounded-full bg-green-400 ${i === 0 ? 'w-6' : 'w-1.5'}`} />
+          ))}
+        </div>
+
+        {/* Tap to dismiss hint */}
+        <p className="text-xs text-gray-300 mt-3">Tap anywhere to dismiss</p>
+      </div>
+    </div>
+  );
+}
 
 const STOP_REASONS = [
   { value: 'course_complete', label: '✅ Course Complete', desc: 'Finished all tablets as prescribed' },
@@ -88,7 +153,7 @@ function StopMedicineModal({ medicine, onClose, onStopped }) {
   );
 }
 
-function MedicineCard({ med, onLogDose, onUnlog, onStop }) {
+function MedicineCard({ med, onLogDose, onUnlog, onStop, onShowMotivation }) {
   const [open, setOpen] = useState(true);
   const [logging, setLogging] = useState(null);
 
@@ -102,7 +167,7 @@ function MedicineCard({ med, onLogDose, onUnlog, onStop }) {
       } else {
         await api.post(`/patient/medicines/${med.med_id}/log`, { dose_slot: slot });
         onLogDose(med.med_id, slot);
-        toast.success(`✓ Dose logged!`);
+        onShowMotivation(); // 🎉 show motivational popup
       }
     } catch {
       toast.error('Failed to update dose');
@@ -222,6 +287,7 @@ export default function TodayMedicines() {
   const [schedule, setSchedule] = useState([]);
   const [loading, setLoading] = useState(true);
   const [stopTarget, setStopTarget] = useState(null);
+  const [showMotivation, setShowMotivation] = useState(false);
   const today = new Date();
 
   const load = useCallback(async () => {
@@ -273,6 +339,9 @@ export default function TodayMedicines() {
 
   return (
     <div className="space-y-4">
+      {/* Motivational popup */}
+      {showMotivation && <MotivationalPopup onClose={() => setShowMotivation(false)} />}
+
       {/* Stop modal */}
       {stopTarget && (
         <StopMedicineModal
@@ -355,6 +424,7 @@ export default function TodayMedicines() {
               onLogDose={handleLogDose}
               onUnlog={handleUnlog}
               onStop={setStopTarget}
+              onShowMotivation={() => setShowMotivation(true)}
             />
           ))}
         </div>
