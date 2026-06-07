@@ -5,6 +5,38 @@ import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 import { ArrowLeft, User, Save, Lock } from 'lucide-react';
 
+const KNOWN_SPECS = [
+  'General Practitioner','Cardiologist','Dermatologist','Endocrinologist',
+  'Gastroenterologist','Neurologist','Oncologist','Ophthalmologist',
+  'Orthopaedic Surgeon','Paediatrician','Psychiatrist','Pulmonologist',
+  'Radiologist','Rheumatologist','Urologist',
+];
+
+function SpecialisationField({ value, onChange }) {
+  const isOther = value && !KNOWN_SPECS.includes(value);
+  const selectVal = isOther ? 'Other' : (value || '');
+
+  return (
+    <>
+      <select className="input" value={selectVal}
+        onChange={e => {
+          if (e.target.value === 'Other') onChange('__other__');
+          else onChange(e.target.value);
+        }}>
+        <option value="">Select specialisation</option>
+        {KNOWN_SPECS.map(s => <option key={s}>{s}</option>)}
+        <option value="Other">Other (type below)</option>
+      </select>
+      {(selectVal === 'Other' || isOther) && (
+        <input className="input mt-2" placeholder="Type your specialisation..."
+          value={value === '__other__' ? '' : value}
+          onChange={e => onChange(e.target.value)}
+          autoFocus />
+      )}
+    </>
+  );
+}
+
 export default function DoctorProfile() {
   const { user, setUser } = useAuth();
   const navigate = useNavigate();
@@ -122,15 +154,7 @@ export default function DoctorProfile() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="label">Specialisation</label>
-              <select className="input" value={form.specialisation} onChange={e => set('specialisation', e.target.value)}>
-                <option value="">Select specialisation</option>
-                {['General Practitioner','Cardiologist','Dermatologist','Endocrinologist','Gastroenterologist',
-                  'Neurologist','Oncologist','Ophthalmologist','Orthopaedic Surgeon','Paediatrician',
-                  'Psychiatrist','Pulmonologist','Radiologist','Rheumatologist','Urologist','Other'].map(s => (
-                  <option key={s}>{s}</option>
-                ))}
-              </select>
-            </div>
+              <SpecialisationField value={form.specialisation} onChange={v => set('specialisation', v)} />
             <div>
               <label className="label">Qualification</label>
               <input className="input" value={form.qualification} onChange={e => set('qualification', e.target.value)}

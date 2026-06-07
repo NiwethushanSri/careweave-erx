@@ -156,18 +156,29 @@ export default function RegisterDoctor() {
               </div>
               <div>
                 <label className="label">Specialisation</label>
-                <select className="input" value={form.specialisation} onChange={e => set('specialisation', e.target.value)}>
+                <select className="input" value={
+                  form.specialisation && !['General Practitioner','Cardiologist','Dermatologist','Endocrinologist',
+                    'Gastroenterologist','Neurologist','Oncologist','Ophthalmologist','Orthopaedic Surgeon',
+                    'Paediatrician','Psychiatrist','Pulmonologist','Radiologist','Rheumatologist','Urologist']
+                    .includes(form.specialisation) ? 'Other' : form.specialisation
+                } onChange={e => {
+                  if (e.target.value === 'Other') set('specialisation', '__other__');
+                  else set('specialisation', e.target.value);
+                }}>
                   <option value="">General Practitioner</option>
-                  <option>Cardiology</option>
-                  <option>Dermatology</option>
-                  <option>Endocrinology</option>
-                  <option>Gastroenterology</option>
-                  <option>Neurology</option>
-                  <option>Oncology</option>
-                  <option>Paediatrics</option>
-                  <option>Psychiatry</option>
-                  <option>Surgery</option>
+                  {['Cardiologist','Dermatologist','Endocrinologist','Gastroenterologist','Neurologist',
+                    'Oncologist','Ophthalmologist','Orthopaedic Surgeon','Paediatrician','Psychiatrist',
+                    'Pulmonologist','Radiologist','Rheumatologist','Urologist'].map(s => <option key={s}>{s}</option>)}
+                  <option value="Other">Other (type below)</option>
                 </select>
+                {(form.specialisation === '__other__' || (form.specialisation && !['General Practitioner','Cardiologist','Dermatologist','Endocrinologist',
+                    'Gastroenterologist','Neurologist','Oncologist','Ophthalmologist','Orthopaedic Surgeon',
+                    'Paediatrician','Psychiatrist','Pulmonologist','Radiologist','Rheumatologist','Urologist']
+                    .includes(form.specialisation))) && (
+                  <input className="input mt-2" placeholder="Type your specialisation..."
+                    value={form.specialisation === '__other__' ? '' : form.specialisation}
+                    onChange={e => set('specialisation', e.target.value)} autoFocus />
+                )}
               </div>
               <div className="col-span-2">
                 <label className="label">Qualification</label>
