@@ -100,11 +100,11 @@ export default function PrescriptionPDF() {
         </button>
       </div>
 
-      {/* Prescription content — this is what gets captured */}
-      <div className="max-w-2xl mx-auto py-6 px-4">
+      {/* Prescription content — fixed 700px so PDF always renders full-width */}
+      <div className="py-6 overflow-x-auto">
         <div ref={contentRef}
-          className="bg-white rounded-2xl shadow-sm p-6 sm:p-8"
-          style={{ fontFamily: 'Inter, sans-serif' }}>
+          className="bg-white rounded-2xl shadow-sm p-8"
+          style={{ fontFamily: 'Inter, sans-serif', width: '700px', margin: '0 auto' }}>
 
           {/* ── Header ── */}
           <div className="flex items-start justify-between gap-4 pb-4 mb-5 border-b-2 border-green-600">
@@ -124,28 +124,28 @@ export default function PrescriptionPDF() {
           </div>
 
           {/* ── Doctor & Patient ── */}
-          <div className="grid grid-cols-2 gap-4 mb-5">
-            <div className="border border-gray-200 rounded-xl p-3">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Prescribing Doctor</p>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
+            <div className="border border-gray-200 rounded-xl p-4">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Prescribing Doctor</p>
               <p className="font-semibold text-sm">Dr. {prescription.doctor_name}</p>
-              <p className="text-xs text-gray-500">SLMC: {prescription.slmc_number}</p>
+              <p className="text-xs text-gray-500 mt-0.5">SLMC: {prescription.slmc_number}</p>
               {prescription.specialisation && <p className="text-xs text-gray-500">{prescription.specialisation}</p>}
               {prescription.clinic_name    && <p className="text-xs text-gray-500">{prescription.clinic_name}</p>}
             </div>
-            <div className="border border-gray-200 rounded-xl p-3">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5">
+            <div className="border border-gray-200 rounded-xl p-4">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
                 Patient {wi && <span className="text-amber-500">(Walk-in)</span>}
               </p>
               <p className="font-semibold text-sm">{patientName || '—'}</p>
-              {patientNic    && <p className="text-xs text-gray-500">NIC: {patientNic}</p>}
+              {patientNic    && <p className="text-xs text-gray-500 mt-0.5">NIC: {patientNic}</p>}
               {patientMobile && <p className="text-xs text-gray-500">Mobile: {patientMobile}</p>}
             </div>
           </div>
 
           {/* ── Clinical Details ── */}
-          <div className="border border-gray-200 rounded-xl p-3 mb-5">
+          <div className="border border-gray-200 rounded-xl p-4 mb-5">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Clinical Details</p>
-            <div className="grid grid-cols-2 gap-2 text-xs">
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }} className="text-xs">
               {prescription.diagnosis && (
                 <div><span className="text-gray-500">Diagnosis: </span><span className="font-semibold">{prescription.diagnosis}</span></div>
               )}
@@ -187,7 +187,7 @@ export default function PrescriptionPDF() {
           </div>
 
           {/* ── QR + Pharmacy ── */}
-          <div className="grid grid-cols-2 gap-4 mb-5">
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
             {prescription.qr_code && (
               <div className="border border-gray-200 rounded-xl p-3 text-center">
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Verification QR</p>
