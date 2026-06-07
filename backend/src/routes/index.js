@@ -94,6 +94,9 @@ router.get('/pharmacies', async (req, res) => {
 router.get('/patients/search', authenticate, authorize('doctor'), async (req, res) => {
   try {
     const { nic } = req.query;
+    const q = (nic || '').trim();
+    if (!q) return res.status(400).json({ success: false, message: 'Search query required' });
+
     const result = await pool.query(
       `SELECT pa.id, u.full_name, u.nic, u.mobile, pa.date_of_birth, pa.gender, pa.blood_group, pa.allergies,
         pa.address, pa.city, pa.district,
@@ -101,8 +104,10 @@ router.get('/patients/search', authenticate, authorize('doctor'), async (req, re
         ph.pharmacy_name as preferred_pharmacy
        FROM patients pa JOIN users u ON u.id=pa.user_id
        LEFT JOIN pharmacies ph ON ph.id=pa.preferred_pharmacy_id
-       WHERE u.nic = $1`,
-      [nic]
+       WHERE UPPER(TRIM(u.nic)) = UPPER($1)
+          OR TRIM(u.mobile) = $1
+          OR u.email = $1`,
+      [q]
     );
     if (!result.rows[0]) return res.status(404).json({ success: false, message: 'Patient not found' });
     res.json({ success: true, data: result.rows[0] });

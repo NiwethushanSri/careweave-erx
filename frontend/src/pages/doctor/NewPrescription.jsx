@@ -107,7 +107,7 @@ export default function NewPrescription() {
           <div className="flex gap-2">
             <input
               className="input"
-              placeholder="Enter patient NIC number"
+              placeholder="Enter patient NIC or mobile number"
               value={patientNic}
               onChange={e => setPatientNic(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), searchPatient())}
