@@ -5,7 +5,8 @@ import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
-import { TrendingUp, FileText, CheckCircle, Clock, Users } from 'lucide-react';
+import { TrendingUp, FileText, CheckCircle, Clock, Users, Download } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 const COLORS = ['#059669', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'];
 
@@ -45,6 +46,73 @@ export default function Analytics() {
   };
 
   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  const exportExcel = () => {
+    if (!data) return toast.error('No data to export');
+
+    const periodLabel = period === 'yearly'
+      ? `${year}`
+      : period === 'monthly'
+      ? `${months[month - 1]}_${year}`
+      : 'Last_7_days';
+
+    const wb = XLSX.utils.book_new();
+
+    // ── Sheet 1: Summary ──────────────────────────────────────────
+    const summaryRows = [
+      ['CareWeave eRx — Annual Report'],
+      [`Period: ${period === 'yearly' ? year : period === 'monthly' ? `${months[month-1]} ${year}` : 'Last 7 Days'}`],
+      [`Generated: ${new Date().toLocaleString()}`],
+      [],
+      ['Metric', 'Value'],
+      ['Total Prescriptions Created', totalCreated],
+      ['Total Dispensed', totalDispensed],
+      ['Dispensing Rate', `${dispensingRate}%`],
+      ['Active Doctors', data.topDoctors?.length || 0],
+    ];
+    const ws1 = XLSX.utils.aoa_to_sheet(summaryRows);
+    ws1['!cols'] = [{ wch: 35 }, { wch: 20 }];
+    // Style header
+    ws1['A1'] = { v: 'CareWeave eRx — Annual Report', t: 's' };
+    XLSX.utils.book_append_sheet(wb, ws1, 'Summary');
+
+    // ── Sheet 2: Daily / Monthly Stats ────────────────────────────
+    const statsHeader = ['Date', 'Prescriptions Created', 'Dispensed'];
+    const statsRows = (period === 'yearly' ? yearlyData : chartData).map(d => [
+      d.date, d.Created, d.Dispensed
+    ]);
+    const ws2 = XLSX.utils.aoa_to_sheet([statsHeader, ...statsRows]);
+    ws2['!cols'] = [{ wch: 15 }, { wch: 25 }, { wch: 15 }];
+    XLSX.utils.book_append_sheet(wb, ws2, period === 'yearly' ? 'Monthly Breakdown' : 'Daily Breakdown');
+
+    // ── Sheet 3: Prescriptions by Status ──────────────────────────
+    const statusHeader = ['Status', 'Count'];
+    const statusRows = (data.prescriptionsByStatus || []).map(s => [s.status, parseInt(s.count)]);
+    const ws3 = XLSX.utils.aoa_to_sheet([statusHeader, ...statusRows]);
+    ws3['!cols'] = [{ wch: 20 }, { wch: 10 }];
+    XLSX.utils.book_append_sheet(wb, ws3, 'Status Breakdown');
+
+    // ── Sheet 4: Top Doctors ───────────────────────────────────────
+    const docHeader = ['Rank', 'Doctor Name', 'SLMC Number', 'Prescriptions'];
+    const docRows = (data.topDoctors || []).map((d, i) => [
+      i + 1, d.full_name, d.slmc_number, parseInt(d.prescriptions_count)
+    ]);
+    const ws4 = XLSX.utils.aoa_to_sheet([docHeader, ...docRows]);
+    ws4['!cols'] = [{ wch: 6 }, { wch: 30 }, { wch: 20 }, { wch: 15 }];
+    XLSX.utils.book_append_sheet(wb, ws4, 'Top Doctors');
+
+    // ── Sheet 5: Top Pharmacies ────────────────────────────────────
+    const pharHeader = ['Rank', 'Pharmacy Name', 'Dispensed Count'];
+    const pharRows = (data.topPharmacies || []).map((p, i) => [
+      i + 1, p.pharmacy_name, parseInt(p.dispensed_count)
+    ]);
+    const ws5 = XLSX.utils.aoa_to_sheet([pharHeader, ...pharRows]);
+    ws5['!cols'] = [{ wch: 6 }, { wch: 35 }, { wch: 18 }];
+    XLSX.utils.book_append_sheet(wb, ws5, 'Top Pharmacies');
+
+    XLSX.writeFile(wb, `CareWeave_eRx_Report_${periodLabel}.xlsx`);
+    toast.success('Excel report downloaded!');
+  };
   const years = [2024, 2025, 2026, 2027];
 
   const totalCreated = data?.dailyStats?.reduce((a, d) => a + parseInt(d.created), 0) || 0;
@@ -77,11 +145,22 @@ export default function Analytics() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-wrap items-start justify-between gap-4 mb-8">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Analytics</h1>
           <p className="text-gray-500 text-sm">Prescription statistics and trends</p>
         </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Export button */}
+          <button
+            onClick={exportExcel}
+            disabled={loading || !data}
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-40 text-white text-sm font-medium rounded-lg transition-colors shadow-sm"
+          >
+            <Download className="w-4 h-4" />
+            Export Excel
+          </button>
 
         {/* Period controls */}
         <div className="flex items-center gap-3">
@@ -107,6 +186,7 @@ export default function Analytics() {
               {months.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
             </select>
           )}
+        </div>
         </div>
       </div>
 
