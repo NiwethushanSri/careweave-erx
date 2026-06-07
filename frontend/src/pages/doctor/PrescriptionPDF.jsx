@@ -6,247 +6,246 @@ import { ArrowLeft, Download, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import jsPDF from 'jspdf';
 
-/* ─── Pure jsPDF drawing (no html2canvas) ────────────────────────────────── */
+/* ─── Generate PDF using native jsPDF drawing ───────────────────────────── */
 function generatePDF(rx) {
   const wi            = rx.walk_in_patient;
   const patientName   = (wi ? wi.name   : rx.patient_name)   || '—';
-  const patientNic    = (wi ? wi.nic    : rx.patient_nic)    || '';
-  const patientMobile = (wi ? wi.mobile : rx.patient_mobile) || '';
+  const patientNic    = wi ? wi.nic    : rx.patient_nic;
+  const patientMobile = wi ? wi.mobile : rx.patient_mobile;
 
-  const W  = 100;   // page width  (mm) — narrow for mobile readability
-  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [W, 297] });
+  const W   = 100;   // page width mm
+  const pad = 7;
+  const iW  = W - pad * 2;  // inner width
+  const green = '#059669'; const gray = '#6b7280'; const dark = '#111827'; const light = '#9ca3af';
 
-  const pad  = 8;
-  const gray = '#6b7280';
-  const green = '#059669';
-  const dark  = '#111827';
+  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [W, 400] });
 
-  let y = pad;
-
-  // ── helpers ──────────────────────────────────────────────────────
-  const txt = (text, x, yy, { size = 9, color = dark, bold = false, align = 'left', maxW } = {}) => {
+  /* helpers */
+  const font  = (size, color, bold = false) => {
     pdf.setFontSize(size);
     pdf.setTextColor(color);
     pdf.setFont('helvetica', bold ? 'bold' : 'normal');
-    if (maxW) {
-      const lines = pdf.splitTextToSize(String(text), maxW);
-      pdf.text(lines, x, yy, { align });
-      return lines.length * (size * 0.35 + 1);   // return height used
-    }
-    pdf.text(String(text), x, yy, { align });
-    return size * 0.35 + 1;
+  };
+  const write = (text, x, y, opts = {}) => {
+    font(opts.size || 8, opts.color || dark, opts.bold || false);
+    const lines = pdf.splitTextToSize(String(text || ''), opts.maxW || iW);
+    pdf.text(lines, x, y, { align: opts.align || 'left' });
+    return lines.length * ((opts.size || 8) * 0.38);
+  };
+  const hline = (y, color = '#e5e7eb') => {
+    pdf.setDrawColor(color); pdf.setLineWidth(0.25); pdf.line(pad, y, W - pad, y);
+  };
+  const sectionLabel = (text, y) => {
+    font(6.5, light, true);
+    pdf.text(text, pad, y);
+    return 4.5;
   };
 
-  const card = (yStart, height, filled = false) => {
-    pdf.setFillColor(filled ? '#f9fafb' : '#ffffff');
-    pdf.setDrawColor('#e5e7eb');
-    pdf.setLineWidth(0.3);
-    pdf.roundedRect(pad, yStart, W - pad * 2, height, 2, 2, filled ? 'FD' : 'D');
-  };
+  let y = pad;
 
-  const section = (label, yy) => {
-    txt(label, pad, yy, { size: 7, color: '#9ca3af', bold: true });
-    return 5;
-  };
+  /* ── Header ── */
+  write('CareWeave eRx', pad, y, { size: 13, color: green, bold: true });
+  write(rx.prescription_code, W - pad, y, { size: 7, color: green, bold: true, align: 'right' });
+  y += 5;
+  write('Ministry of Health Sri Lanka', pad, y, { size: 7, color: gray });
 
-  // ── Header ───────────────────────────────────────────────────────
-  txt('CareWeave eRx', pad, y, { size: 13, color: green, bold: true });
-  txt('Ministry of Health Sri Lanka', pad, y + 5, { size: 7, color: gray });
-  txt(rx.prescription_code, W - pad, y, { size: 7, color: green, bold: true, align: 'right' });
+  /* Status badge */
+  const sBg = rx.status === 'dispensed' ? '#d1fae5' : rx.status === 'sent' ? '#dbeafe' : '#fef3c7';
+  const sFg = rx.status === 'dispensed' ? '#065f46' : rx.status === 'sent' ? '#1e40af' : '#92400e';
+  pdf.setFillColor(sBg);
+  pdf.roundedRect(W - pad - 22, y - 3.5, 22, 5.5, 1.2, 1.2, 'F');
+  font(6, sFg, true);
+  pdf.text(rx.status.toUpperCase(), W - pad - 11, y + 0.5, { align: 'center' });
 
-  const statusBg = rx.status === 'dispensed' ? '#d1fae5' : rx.status === 'sent' ? '#dbeafe' : '#fef3c7';
-  const statusFg = rx.status === 'dispensed' ? '#065f46' : rx.status === 'sent' ? '#1e40af' : '#92400e';
-  pdf.setFillColor(statusBg);
-  pdf.roundedRect(W - pad - 20, y + 6, 20, 5, 1, 1, 'F');
-  txt(rx.status.toUpperCase(), W - pad - 10, y + 9.5, { size: 6, color: statusFg, bold: true, align: 'center' });
-
-  y += 14;
-  pdf.setDrawColor(green);
-  pdf.setLineWidth(0.6);
-  pdf.line(pad, y, W - pad, y);
+  y += 5;
+  pdf.setDrawColor(green); pdf.setLineWidth(0.7); pdf.line(pad, y, W - pad, y);
   y += 5;
 
-  // ── Doctor ───────────────────────────────────────────────────────
-  y += section('PRESCRIBING DOCTOR', y);
-  const doctorCardY = y; y += 2;
-  txt(`Dr. ${rx.doctor_name}`, pad + 2, y, { size: 9, bold: true });  y += 4.5;
-  txt(`SLMC: ${rx.slmc_number}`, pad + 2, y, { size: 7.5, color: gray }); y += 4;
-  if (rx.specialisation) { txt(rx.specialisation, pad + 2, y, { size: 7.5, color: gray }); y += 4; }
-  if (rx.clinic_name)    { txt(rx.clinic_name,    pad + 2, y, { size: 7.5, color: gray }); y += 4; }
-  card(doctorCardY - 1, y - doctorCardY + 2, true);
-  y += 3;
+  /* ── Doctor ── */
+  y += sectionLabel('PRESCRIBING DOCTOR', y);
+  write(`Dr. ${rx.doctor_name}`, pad, y, { size: 9, bold: true }); y += 4.5;
+  write(`SLMC: ${rx.slmc_number}`, pad, y, { size: 7.5, color: gray }); y += 4;
+  if (rx.specialisation) { write(rx.specialisation, pad, y, { size: 7.5, color: gray }); y += 4; }
+  if (rx.clinic_name)    { write(rx.clinic_name,    pad, y, { size: 7.5, color: gray }); y += 4; }
+  hline(y); y += 4;
 
-  // ── Patient ──────────────────────────────────────────────────────
-  y += section(`PATIENT${wi ? ' (WALK-IN)' : ''}`, y);
-  const patientCardY = y; y += 2;
-  txt(patientName, pad + 2, y, { size: 9, bold: true }); y += 4.5;
-  if (patientNic)    { txt(`NIC: ${patientNic}`,       pad + 2, y, { size: 7.5, color: gray }); y += 4; }
-  if (patientMobile) { txt(`Mobile: ${patientMobile}`, pad + 2, y, { size: 7.5, color: gray }); y += 4; }
-  card(patientCardY - 1, y - patientCardY + 2, true);
-  y += 3;
+  /* ── Patient ── */
+  y += sectionLabel(`PATIENT${wi ? ' (WALK-IN)' : ''}`, y);
+  write(patientName, pad, y, { size: 9, bold: true }); y += 4.5;
+  if (patientNic)    { write(`NIC: ${patientNic}`,       pad, y, { size: 7.5, color: gray }); y += 4; }
+  if (patientMobile) { write(`Mobile: ${patientMobile}`, pad, y, { size: 7.5, color: gray }); y += 4; }
+  hline(y); y += 4;
 
-  // ── Clinical Details ─────────────────────────────────────────────
-  y += section('CLINICAL DETAILS', y);
-  const clinCardY = y; y += 2;
+  /* ── Clinical Details ── */
+  y += sectionLabel('CLINICAL DETAILS', y);
   if (rx.diagnosis) {
-    txt('Diagnosis: ', pad + 2, y, { size: 7.5, color: gray });
-    txt(rx.diagnosis, pad + 22, y, { size: 7.5, bold: true }); y += 4;
+    write('Diagnosis:', pad, y, { size: 7.5, color: gray });
+    write(rx.diagnosis, pad + 20, y, { size: 7.5, bold: true, maxW: iW - 20 }); y += 4;
   }
-  txt(`Date: ${format(new Date(rx.created_at), 'dd MMM yyyy')}`,   pad + 2, y, { size: 7.5, color: gray }); y += 4;
-  txt(`Valid until: ${format(new Date(rx.valid_until), 'dd MMM yyyy')}`, pad + 2, y, { size: 7.5, color: gray }); y += 4;
+  write(`Date: ${format(new Date(rx.created_at), 'dd MMM yyyy')}`, pad, y, { size: 7.5, color: gray }); y += 4;
+  write(`Valid until: ${format(new Date(rx.valid_until), 'dd MMM yyyy')}`, pad, y, { size: 7.5, color: gray }); y += 4;
   if (rx.notes) {
-    const noteLines = pdf.splitTextToSize(`"${rx.notes}"`, W - pad * 2 - 4);
-    pdf.setFontSize(7); pdf.setTextColor(gray); pdf.setFont('helvetica', 'italic');
-    pdf.text(noteLines, pad + 2, y);
+    const noteLines = pdf.splitTextToSize(`"${rx.notes}"`, iW);
+    font(7, gray, false);
+    pdf.setFont('helvetica', 'italic');
+    pdf.text(noteLines, pad, y);
     y += noteLines.length * 3.5 + 1;
   }
-  card(clinCardY - 1, y - clinCardY + 2, true);
-  y += 3;
+  hline(y); y += 4;
 
-  // ── Medicines ─────────────────────────────────────────────────────
-  y += section('PRESCRIBED MEDICINES', y);
+  /* ── Medicines ── */
+  y += sectionLabel('PRESCRIBED MEDICINES', y);
   (rx.medicines || []).forEach((med, i) => {
-    const medCardY = y; y += 2;
-    txt(`${i + 1}. ${med.medicine_name}`, pad + 2, y, { size: 8.5, bold: true });
-    txt(med.dosage, W - pad - 2, y, { size: 8, color: green, bold: true, align: 'right' });
-    y += 4.5;
-    txt(`Qty: ${med.quantity}  |  Freq: ${med.frequency || '—'}`, pad + 2, y, { size: 7, color: gray }); y += 3.5;
-    if (med.instructions) {
-      const iLines = pdf.splitTextToSize(`Note: ${med.instructions}`, W - pad * 2 - 4);
-      pdf.setFontSize(7); pdf.setTextColor(gray); pdf.setFont('helvetica', 'normal');
-      pdf.text(iLines, pad + 2, y);
-      y += iLines.length * 3.2 + 0.5;
+    /* alternating light bg */
+    if (i % 2 === 0) {
+      pdf.setFillColor('#f9fafb');
+      pdf.rect(pad - 1, y - 1, iW + 2, 16, 'F');
     }
-    card(medCardY - 1, y - medCardY + 2, i % 2 === 0);
-    y += 3;
+    write(`${i + 1}. ${med.medicine_name}`, pad, y, { size: 8.5, bold: true });
+    write(med.dosage, W - pad, y, { size: 8, color: green, bold: true, align: 'right' });
+    y += 4.5;
+    write(`Qty: ${med.quantity}   Freq: ${med.frequency || '—'}`, pad, y, { size: 7, color: gray }); y += 3.5;
+    if (med.instructions) {
+      const il = pdf.splitTextToSize(`Note: ${med.instructions}`, iW);
+      font(6.5, gray, false);
+      pdf.text(il, pad, y);
+      y += il.length * 3 + 0.5;
+    }
+    hline(y, '#f3f4f6'); y += 3;
   });
+  y += 1;
 
-  // ── QR code ──────────────────────────────────────────────────────
+  /* ── QR code ── */
   if (rx.qr_code) {
     try {
-      y += section('VERIFICATION QR', y);
+      hline(y); y += 4;
+      y += sectionLabel('VERIFICATION QR', y);
       pdf.addImage(rx.qr_code, 'PNG', W / 2 - 15, y, 30, 30);
       y += 33;
     } catch (_) {}
   }
 
-  // ── Pharmacy ─────────────────────────────────────────────────────
+  /* ── Pharmacy ── */
   if (rx.pharmacy_name) {
-    y += section('DISPENSING PHARMACY', y);
-    const phCardY = y; y += 2;
-    txt(rx.pharmacy_name, pad + 2, y, { size: 8.5, bold: true }); y += 4.5;
-    if (rx.pharmacy_address) { txt(rx.pharmacy_address, pad + 2, y, { size: 7.5, color: gray }); y += 4; }
-    if (rx.dispensed_at) { txt(`Dispensed: ${format(new Date(rx.dispensed_at), 'dd MMM yyyy HH:mm')}`, pad + 2, y, { size: 7.5, color: green, bold: true }); y += 4; }
-    card(phCardY - 1, y - phCardY + 2, true);
-    y += 3;
+    hline(y); y += 4;
+    y += sectionLabel('DISPENSING PHARMACY', y);
+    write(rx.pharmacy_name, pad, y, { size: 8.5, bold: true }); y += 4.5;
+    if (rx.pharmacy_address) { write(rx.pharmacy_address, pad, y, { size: 7.5, color: gray }); y += 4; }
+    if (rx.dispensed_at) {
+      write(`Dispensed: ${format(new Date(rx.dispensed_at), 'dd MMM yyyy HH:mm')}`, pad, y, { size: 7.5, color: green, bold: true });
+      y += 4;
+    }
   }
 
-  // ── Footer ───────────────────────────────────────────────────────
-  y += 2;
-  pdf.setDrawColor('#e5e7eb'); pdf.setLineWidth(0.2);
-  pdf.line(pad, y, W - pad, y); y += 4;
-  txt('Digitally verified prescription · CareWeave eRx', W / 2, y, { size: 6.5, color: '#9ca3af', align: 'center' }); y += 3.5;
-  txt(`careweave-erx.vercel.app · ${rx.prescription_code}`, W / 2, y, { size: 6, color: '#9ca3af', align: 'center' });
+  /* ── Footer ── */
+  y += 3;
+  hline(y); y += 4;
+  font(6.5, light, false);
+  pdf.text('Digitally verified prescription · CareWeave eRx', W / 2, y, { align: 'center' }); y += 3.5;
+  pdf.text(`careweave-erx.vercel.app · ${rx.prescription_code}`, W / 2, y, { align: 'center' });
 
-  // ── Trim page height ─────────────────────────────────────────────
-  const finalHeight = y + 8;
-  const trimmed = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [W, finalHeight] });
-  // Re-generate into correctly-sized PDF
-  return generatePDFToDoc(rx, W, finalHeight);
+  /* ── Re-render to exact page size ── */
+  const finalH = y + pad;
+  const pdf2   = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [W, finalH] });
+  // copy page data by re-running (jsPDF doesn't support resize after creation)
+  return buildFinalPDF(rx, W, finalH);
 }
 
-/* Re-generates into a correctly-sized doc */
-function generatePDFToDoc(rx, W, H) {
+function buildFinalPDF(rx, W, H) {
   const wi            = rx.walk_in_patient;
   const patientName   = (wi ? wi.name   : rx.patient_name)   || '—';
-  const patientNic    = (wi ? wi.nic    : rx.patient_nic)    || '';
-  const patientMobile = (wi ? wi.mobile : rx.patient_mobile) || '';
-  const green = '#059669'; const gray = '#6b7280'; const dark = '#111827';
-  const pad = 8;
+  const patientNic    = wi ? wi.nic    : rx.patient_nic;
+  const patientMobile = wi ? wi.mobile : rx.patient_mobile;
 
+  const pad = 7; const iW = W - pad * 2;
+  const green = '#059669'; const gray = '#6b7280'; const dark = '#111827'; const light = '#9ca3af';
   const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [W, H] });
+
+  const font = (size, color, bold = false) => {
+    pdf.setFontSize(size); pdf.setTextColor(color); pdf.setFont('helvetica', bold ? 'bold' : 'normal');
+  };
+  const write = (text, x, y, opts = {}) => {
+    font(opts.size || 8, opts.color || dark, opts.bold || false);
+    const lines = pdf.splitTextToSize(String(text || ''), opts.maxW || iW);
+    pdf.text(lines, x, y, { align: opts.align || 'left' });
+    return lines.length * ((opts.size || 8) * 0.38);
+  };
+  const hline = (y, color = '#e5e7eb') => {
+    pdf.setDrawColor(color); pdf.setLineWidth(0.25); pdf.line(pad, y, W - pad, y);
+  };
+  const slabel = (text, y) => { font(6.5, light, true); pdf.text(text, pad, y); return 4.5; };
+
   let y = pad;
 
-  const txt = (text, x, yy, { size = 9, color = dark, bold = false, align = 'left', maxW } = {}) => {
-    pdf.setFontSize(size); pdf.setTextColor(color); pdf.setFont('helvetica', bold ? 'bold' : 'normal');
-    if (maxW) { const lines = pdf.splitTextToSize(String(text), maxW); pdf.text(lines, x, yy, { align }); return lines.length * (size * 0.35 + 1); }
-    pdf.text(String(text), x, yy, { align }); return size * 0.35 + 1;
-  };
-  const card = (yStart, height, filled = false) => {
-    pdf.setFillColor(filled ? '#f9fafb' : '#ffffff'); pdf.setDrawColor('#e5e7eb'); pdf.setLineWidth(0.3);
-    pdf.roundedRect(pad, yStart, W - pad * 2, height, 2, 2, filled ? 'FD' : 'D');
-  };
-  const section = (label, yy) => { txt(label, pad, yy, { size: 7, color: '#9ca3af', bold: true }); return 5; };
+  write('CareWeave eRx', pad, y, { size: 13, color: green, bold: true });
+  write(rx.prescription_code, W - pad, y, { size: 7, color: green, bold: true, align: 'right' });
+  y += 5;
+  write('Ministry of Health Sri Lanka', pad, y, { size: 7, color: gray });
+  const sBg = rx.status === 'dispensed' ? '#d1fae5' : rx.status === 'sent' ? '#dbeafe' : '#fef3c7';
+  const sFg = rx.status === 'dispensed' ? '#065f46' : rx.status === 'sent' ? '#1e40af' : '#92400e';
+  pdf.setFillColor(sBg); pdf.roundedRect(W - pad - 22, y - 3.5, 22, 5.5, 1.2, 1.2, 'F');
+  font(6, sFg, true); pdf.text(rx.status.toUpperCase(), W - pad - 11, y + 0.5, { align: 'center' });
+  y += 5; pdf.setDrawColor(green); pdf.setLineWidth(0.7); pdf.line(pad, y, W - pad, y); y += 5;
 
-  txt('CareWeave eRx', pad, y, { size: 13, color: green, bold: true });
-  txt('Ministry of Health Sri Lanka', pad, y + 5, { size: 7, color: gray });
-  txt(rx.prescription_code, W - pad, y, { size: 7, color: green, bold: true, align: 'right' });
-  const statusBg = rx.status === 'dispensed' ? '#d1fae5' : rx.status === 'sent' ? '#dbeafe' : '#fef3c7';
-  const statusFg = rx.status === 'dispensed' ? '#065f46' : rx.status === 'sent' ? '#1e40af' : '#92400e';
-  pdf.setFillColor(statusBg); pdf.roundedRect(W - pad - 20, y + 6, 20, 5, 1, 1, 'F');
-  txt(rx.status.toUpperCase(), W - pad - 10, y + 9.5, { size: 6, color: statusFg, bold: true, align: 'center' });
-  y += 14; pdf.setDrawColor(green); pdf.setLineWidth(0.6); pdf.line(pad, y, W - pad, y); y += 5;
+  y += slabel('PRESCRIBING DOCTOR', y);
+  write(`Dr. ${rx.doctor_name}`, pad, y, { size: 9, bold: true }); y += 4.5;
+  write(`SLMC: ${rx.slmc_number}`, pad, y, { size: 7.5, color: gray }); y += 4;
+  if (rx.specialisation) { write(rx.specialisation, pad, y, { size: 7.5, color: gray }); y += 4; }
+  if (rx.clinic_name)    { write(rx.clinic_name,    pad, y, { size: 7.5, color: gray }); y += 4; }
+  hline(y); y += 4;
 
-  y += section('PRESCRIBING DOCTOR', y);
-  const d1 = y; y += 2;
-  txt(`Dr. ${rx.doctor_name}`, pad + 2, y, { size: 9, bold: true }); y += 4.5;
-  txt(`SLMC: ${rx.slmc_number}`, pad + 2, y, { size: 7.5, color: gray }); y += 4;
-  if (rx.specialisation) { txt(rx.specialisation, pad + 2, y, { size: 7.5, color: gray }); y += 4; }
-  if (rx.clinic_name)    { txt(rx.clinic_name,    pad + 2, y, { size: 7.5, color: gray }); y += 4; }
-  card(d1 - 1, y - d1 + 2, true); y += 3;
+  y += slabel(`PATIENT${wi ? ' (WALK-IN)' : ''}`, y);
+  write(patientName, pad, y, { size: 9, bold: true }); y += 4.5;
+  if (patientNic)    { write(`NIC: ${patientNic}`,       pad, y, { size: 7.5, color: gray }); y += 4; }
+  if (patientMobile) { write(`Mobile: ${patientMobile}`, pad, y, { size: 7.5, color: gray }); y += 4; }
+  hline(y); y += 4;
 
-  y += section(`PATIENT${wi ? ' (WALK-IN)' : ''}`, y);
-  const d2 = y; y += 2;
-  txt(patientName, pad + 2, y, { size: 9, bold: true }); y += 4.5;
-  if (patientNic)    { txt(`NIC: ${patientNic}`,       pad + 2, y, { size: 7.5, color: gray }); y += 4; }
-  if (patientMobile) { txt(`Mobile: ${patientMobile}`, pad + 2, y, { size: 7.5, color: gray }); y += 4; }
-  card(d2 - 1, y - d2 + 2, true); y += 3;
-
-  y += section('CLINICAL DETAILS', y);
-  const d3 = y; y += 2;
-  if (rx.diagnosis) { txt('Diagnosis: ', pad + 2, y, { size: 7.5, color: gray }); txt(rx.diagnosis, pad + 22, y, { size: 7.5, bold: true }); y += 4; }
-  txt(`Date: ${format(new Date(rx.created_at), 'dd MMM yyyy')}`,        pad + 2, y, { size: 7.5, color: gray }); y += 4;
-  txt(`Valid until: ${format(new Date(rx.valid_until), 'dd MMM yyyy')}`, pad + 2, y, { size: 7.5, color: gray }); y += 4;
-  if (rx.notes) {
-    const nl = pdf.splitTextToSize(`"${rx.notes}"`, W - pad * 2 - 4);
-    pdf.setFontSize(7); pdf.setTextColor(gray); pdf.setFont('helvetica', 'italic');
-    pdf.text(nl, pad + 2, y); y += nl.length * 3.5 + 1;
+  y += slabel('CLINICAL DETAILS', y);
+  if (rx.diagnosis) {
+    write('Diagnosis:', pad, y, { size: 7.5, color: gray });
+    write(rx.diagnosis, pad + 20, y, { size: 7.5, bold: true, maxW: iW - 20 }); y += 4;
   }
-  card(d3 - 1, y - d3 + 2, true); y += 3;
+  write(`Date: ${format(new Date(rx.created_at), 'dd MMM yyyy')}`,        pad, y, { size: 7.5, color: gray }); y += 4;
+  write(`Valid until: ${format(new Date(rx.valid_until), 'dd MMM yyyy')}`, pad, y, { size: 7.5, color: gray }); y += 4;
+  if (rx.notes) {
+    const nl = pdf.splitTextToSize(`"${rx.notes}"`, iW);
+    font(7, gray, false); pdf.setFont('helvetica', 'italic'); pdf.text(nl, pad, y);
+    y += nl.length * 3.5 + 1;
+  }
+  hline(y); y += 4;
 
-  y += section('PRESCRIBED MEDICINES', y);
+  y += slabel('PRESCRIBED MEDICINES', y);
   (rx.medicines || []).forEach((med, i) => {
-    const dm = y; y += 2;
-    txt(`${i + 1}. ${med.medicine_name}`, pad + 2, y, { size: 8.5, bold: true });
-    txt(med.dosage, W - pad - 2, y, { size: 8, color: green, bold: true, align: 'right' }); y += 4.5;
-    txt(`Qty: ${med.quantity}  |  Freq: ${med.frequency || '—'}`, pad + 2, y, { size: 7, color: gray }); y += 3.5;
+    if (i % 2 === 0) { pdf.setFillColor('#f9fafb'); pdf.rect(pad - 1, y - 1, iW + 2, 14, 'F'); }
+    write(`${i + 1}. ${med.medicine_name}`, pad, y, { size: 8.5, bold: true });
+    write(med.dosage, W - pad, y, { size: 8, color: green, bold: true, align: 'right' }); y += 4.5;
+    write(`Qty: ${med.quantity}   Freq: ${med.frequency || '—'}`, pad, y, { size: 7, color: gray }); y += 3.5;
     if (med.instructions) {
-      const il = pdf.splitTextToSize(`Note: ${med.instructions}`, W - pad * 2 - 4);
-      pdf.setFontSize(7); pdf.setTextColor(gray); pdf.setFont('helvetica', 'normal');
-      pdf.text(il, pad + 2, y); y += il.length * 3.2 + 0.5;
+      const il = pdf.splitTextToSize(`Note: ${med.instructions}`, iW);
+      font(6.5, gray, false); pdf.text(il, pad, y); y += il.length * 3 + 0.5;
     }
-    card(dm - 1, y - dm + 2, i % 2 === 0); y += 3;
+    hline(y, '#f3f4f6'); y += 3;
   });
+  y += 1;
 
   if (rx.qr_code) {
     try {
-      y += section('VERIFICATION QR', y);
+      hline(y); y += 4; y += slabel('VERIFICATION QR', y);
       pdf.addImage(rx.qr_code, 'PNG', W / 2 - 15, y, 30, 30); y += 33;
     } catch (_) {}
   }
 
   if (rx.pharmacy_name) {
-    y += section('DISPENSING PHARMACY', y);
-    const dp = y; y += 2;
-    txt(rx.pharmacy_name, pad + 2, y, { size: 8.5, bold: true }); y += 4.5;
-    if (rx.pharmacy_address) { txt(rx.pharmacy_address, pad + 2, y, { size: 7.5, color: gray }); y += 4; }
-    if (rx.dispensed_at) { txt(`Dispensed: ${format(new Date(rx.dispensed_at), 'dd MMM yyyy HH:mm')}`, pad + 2, y, { size: 7.5, color: green, bold: true }); y += 4; }
-    card(dp - 1, y - dp + 2, true); y += 3;
+    hline(y); y += 4; y += slabel('DISPENSING PHARMACY', y);
+    write(rx.pharmacy_name, pad, y, { size: 8.5, bold: true }); y += 4.5;
+    if (rx.pharmacy_address) { write(rx.pharmacy_address, pad, y, { size: 7.5, color: gray }); y += 4; }
+    if (rx.dispensed_at) { write(`Dispensed: ${format(new Date(rx.dispensed_at), 'dd MMM yyyy HH:mm')}`, pad, y, { size: 7.5, color: green, bold: true }); y += 4; }
   }
 
-  y += 2; pdf.setDrawColor('#e5e7eb'); pdf.setLineWidth(0.2); pdf.line(pad, y, W - pad, y); y += 4;
-  txt('Digitally verified prescription · CareWeave eRx', W / 2, y, { size: 6.5, color: '#9ca3af', align: 'center' }); y += 3.5;
-  txt(`careweave-erx.vercel.app · ${rx.prescription_code}`, W / 2, y, { size: 6, color: '#9ca3af', align: 'center' });
+  y += 3; hline(y); y += 4;
+  font(6.5, light, false);
+  pdf.text('Digitally verified prescription · CareWeave eRx', W / 2, y, { align: 'center' }); y += 3.5;
+  pdf.text(`careweave-erx.vercel.app · ${rx.prescription_code}`, W / 2, y, { align: 'center' });
 
   return pdf;
 }
@@ -266,12 +265,11 @@ export default function PrescriptionPDF() {
       .finally(() => setLoading(false));
   }, [id]);
 
-  const handleDownload = async () => {
+  const handleDownload = () => {
     setGenerating(true);
     try {
-      // First pass: measure content height
-      const draft = generatePDF(prescription);
-      draft.save(`CareWeave_Rx_${prescription.prescription_code}.pdf`);
+      const pdf = generatePDF(prescription);
+      pdf.save(`CareWeave_Rx_${prescription.prescription_code}.pdf`);
       toast.success('PDF downloaded!');
     } catch (err) {
       console.error(err);
@@ -303,19 +301,13 @@ export default function PrescriptionPDF() {
     <div className="min-h-screen bg-gray-50">
       {/* Top bar */}
       <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-3 shadow-sm">
-        <button onClick={() => navigate(-1)}
-          className="flex items-center gap-1.5 text-gray-500 hover:text-gray-800 text-sm font-medium">
+        <button onClick={() => navigate(-1)} className="flex items-center gap-1.5 text-gray-500 hover:text-gray-800 text-sm font-medium">
           <ArrowLeft className="w-4 h-4" /> Back
         </button>
-        <p className="flex-1 text-center text-xs text-gray-400 font-mono truncate">
-          {prescription.prescription_code}
-        </p>
+        <p className="flex-1 text-center text-xs text-gray-400 font-mono truncate">{prescription.prescription_code}</p>
         <button onClick={handleDownload} disabled={generating}
-          className="flex items-center gap-2 bg-green-600 hover:bg-green-700 disabled:opacity-60
-                     text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors shadow-sm shrink-0">
-          {generating
-            ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating…</>
-            : <><Download className="w-4 h-4" /> Download PDF</>}
+          className="flex items-center gap-2 bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors shadow-sm shrink-0">
+          {generating ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating…</> : <><Download className="w-4 h-4" /> Download PDF</>}
         </button>
       </div>
 
