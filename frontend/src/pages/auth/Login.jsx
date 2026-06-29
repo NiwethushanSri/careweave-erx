@@ -182,6 +182,7 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [slowWarn, setSlowWarn] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -189,15 +190,21 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setSlowWarn(false);
+    // Show wake-up warning after 5 seconds (Render free tier sleeps)
+    const warnTimer = setTimeout(() => setSlowWarn(true), 5000);
     try {
       const user = await login(identifier, password);
+      clearTimeout(warnTimer);
       toast.success(`Welcome, ${user.full_name}`);
       const routes = { doctor: '/doctor', pharmacy: '/pharmacy', patient: '/patient', admin: '/admin' };
       navigate(routes[user.role] || '/');
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Login failed');
+      clearTimeout(warnTimer);
+      toast.error(err.response?.data?.message || 'Login failed. Please try again.');
     } finally {
       setLoading(false);
+      setSlowWarn(false);
     }
   };
 
@@ -253,8 +260,17 @@ export default function Login() {
               </div>
             </div>
             <button type="submit" disabled={loading} className="btn-primary w-full py-2.5">
-              {loading ? 'Signing in...' : 'Sign in'}
+              {loading ? 'Signing in…' : 'Sign in'}
             </button>
+
+            {slowWarn && (
+              <div className="mt-2 flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+                <span className="text-amber-500 mt-0.5 text-base">⏳</span>
+                <p className="text-xs text-amber-700">
+                  <strong>Server is waking up</strong> — this can take up to 60 seconds on first use. Please wait, do not refresh.
+                </p>
+              </div>
+            )}
           </form>
 
           <div style={{ marginTop: '14px', paddingTop: '14px', borderTop: '1px solid #f3f4f6', textAlign: 'center' }}>
