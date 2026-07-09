@@ -3,10 +3,10 @@ const { Pool } = require('pg');
 const pool = process.env.DATABASE_URL
   ? new Pool({
       connectionString: process.env.DATABASE_URL,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-      max: 20,
-      idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 2000,
+      ssl: { rejectUnauthorized: false },
+      max: 10,
+      idleTimeoutMillis: 60000,
+      connectionTimeoutMillis: 10000,
     })
   : new Pool({
       host: process.env.DB_HOST || 'localhost',
@@ -14,9 +14,9 @@ const pool = process.env.DATABASE_URL
       database: process.env.DB_NAME || 'careweave_erx',
       user: process.env.DB_USER || 'postgres',
       password: process.env.DB_PASSWORD,
-      max: 20,
-      idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 2000,
+      max: 10,
+      idleTimeoutMillis: 60000,
+      connectionTimeoutMillis: 10000,
     });
 
 pool.on('connect', () => {

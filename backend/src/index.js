@@ -82,9 +82,14 @@ app.use(morgan('dev'));
 // Routes
 app.use('/api', routes);
 
-// Health check
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString(), service: 'RxSystem SL API' });
+// Health check — also tests DB connection
+app.get('/health', async (req, res) => {
+  try {
+    await pool.query('SELECT 1');
+    res.json({ status: 'ok', db: 'connected', timestamp: new Date().toISOString(), service: 'RxSystem SL API' });
+  } catch (err) {
+    res.status(500).json({ status: 'ok', db: 'ERROR: ' + err.message, timestamp: new Date().toISOString() });
+  }
 });
 
 // 404 handler
