@@ -227,6 +227,21 @@ async function runMigrations() {
       )
     `);
   } catch (e) { console.error('Migration medicine_logs:', e.message); }
+
+  // ── Seed: default admin user (only if none exists) ────────────────────
+  try {
+    const bcrypt = require('bcryptjs');
+    const adminCheck = await pool.query(`SELECT id FROM users WHERE role='admin' LIMIT 1`);
+    if (adminCheck.rows.length === 0) {
+      const hash = await bcrypt.hash('Admin@1234!', 12);
+      await pool.query(
+        `INSERT INTO users (nic, full_name, email, mobile, role, password_hash, is_active, is_verified)
+         VALUES ('000000000000','Admin User','admin@careweave.test','0700000000','admin',$1,true,true)`,
+        [hash]
+      );
+      console.log('✅ Default admin user seeded (mobile: 0700000000, password: Admin@1234!)');
+    }
+  } catch (e) { console.error('Seed admin error:', e.message); }
 }
 runMigrations();
 
