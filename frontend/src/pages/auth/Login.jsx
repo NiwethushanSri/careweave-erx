@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
-import { Eye, EyeOff, MessageCircle, X, Send, Bot, ShieldCheck, Stethoscope, Pill, Clock } from 'lucide-react';
+import { Eye, EyeOff, MessageCircle, X, Send, Bot, ShieldCheck } from 'lucide-react';
 
 const FAQ = [
   { keywords: ['login','sign in','how to login','cant login','log in'], a: 'Enter your NIC number, mobile number or email in the first field, then your password. Click Sign in.' },
@@ -159,19 +159,111 @@ Keep answers short, clear and friendly. Do not answer questions unrelated to the
   );
 }
 
-/* ─── Feature badge for left panel ─── */
-function Feature({ icon: Icon, text }) {
+/* ─── Dashboard preview mockup for the gradient panel ─── */
+function DashboardMockup() {
+  const bars = [40, 55, 46, 70, 60, 85, 100];
+  const recent = [
+    { text: 'Dr. Perera → City Pharmacy', status: 'Dispensed', time: '2m ago', color: '#059669' },
+    { text: 'Dr. Fernando → Lanka Pharmacy', status: 'Sent', time: '14m ago', color: '#2563eb' },
+    { text: 'Dr. Silva → HealthPlus', status: 'Received', time: '38m ago', color: '#d97706' },
+  ];
+
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+    <div style={{ position: 'relative', flex: 1, minHeight: '340px' }}>
+      {/* Card A — stats + bar chart */}
       <div style={{
-        width: '34px', height: '34px', borderRadius: '10px',
-        background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(4px)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+        position: 'absolute', top: 0, left: 0, width: '300px', maxWidth: '78%',
+        background: 'white', borderRadius: '18px', padding: '20px',
+        boxShadow: '0 20px 40px rgba(0,0,0,0.22)',
       }}>
-        <Icon size={16} color="white" />
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '18px' }}>
+          <div>
+            <div style={{ fontSize: '11.5px', color: '#94a3b8', fontWeight: '600', marginBottom: '4px' }}>Prescriptions Sent</div>
+            <div style={{ fontSize: '22px', fontWeight: '800', color: '#0f172a' }}>12,480</div>
+          </div>
+          <div>
+            <div style={{ fontSize: '11.5px', color: '#94a3b8', fontWeight: '600', marginBottom: '4px' }}>Dispensed</div>
+            <div style={{ fontSize: '22px', fontWeight: '800', color: '#059669' }}>94%</div>
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: '6px', height: '46px' }}>
+          {bars.map((h, i) => (
+            <div key={i} style={{
+              width: '10px', height: `${h}%`, borderRadius: '3px',
+              background: i === bars.length - 1 ? '#059669' : '#a7f3d0',
+            }} />
+          ))}
+        </div>
       </div>
-      <span style={{ color: 'rgba(255,255,255,0.92)', fontSize: '13.5px', lineHeight: '1.4' }}>{text}</span>
+
+      {/* Card B — approval gauge */}
+      <div style={{
+        position: 'absolute', top: '38px', right: 0, width: '150px',
+        background: 'white', borderRadius: '18px', padding: '16px',
+        boxShadow: '0 20px 40px rgba(0,0,0,0.22)',
+        display: 'flex', flexDirection: 'column', alignItems: 'center',
+      }}>
+        <div style={{
+          width: '84px', height: '84px', borderRadius: '50%',
+          background: 'conic-gradient(#059669 0% 92%, #e5e7eb 92% 100%)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <div style={{
+            width: '62px', height: '62px', borderRadius: '50%', background: 'white',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: '15px', fontWeight: '800', color: '#0f172a',
+          }}>
+            92%
+          </div>
+        </div>
+        <div style={{ fontSize: '11.5px', color: '#94a3b8', fontWeight: '600', marginTop: '10px' }}>Approval Rate</div>
+      </div>
+
+      {/* Card C — recent activity */}
+      <div style={{
+        position: 'absolute', bottom: 0, left: '36px', right: 0,
+        background: 'white', borderRadius: '18px', padding: '18px 20px',
+        boxShadow: '0 20px 40px rgba(0,0,0,0.22)',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+          <span style={{ fontSize: '13px', fontWeight: '700', color: '#0f172a' }}>Recent Activity</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: '#059669', fontWeight: '600' }}>
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#059669', display: 'inline-block' }} />
+            Live
+          </span>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {recent.map((r, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: r.color, flexShrink: 0 }} />
+                <span style={{ fontSize: '12.5px', color: '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.text}</span>
+              </div>
+              <span style={{ fontSize: '11px', color: '#94a3b8', flexShrink: 0 }}>{r.time}</span>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
+  );
+}
+
+/* ─── Minimal social login icons ─── */
+function GoogleIcon() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 48 48">
+      <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.6 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.5 6.2 29.5 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.7-.4-3.5z"/>
+      <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.9 18.9 13 24 13c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.5 6.2 29.5 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/>
+      <path fill="#4CAF50" d="M24 44c5.2 0 10-2 13.6-5.2l-6.3-5.3C29.3 35.4 26.8 36 24 36c-5.3 0-9.6-3.4-11.3-8l-6.5 5C9.6 39.6 16.3 44 24 44z"/>
+      <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.2-4.2 5.6l6.3 5.3C40.9 36.6 44 30.9 44 24c0-1.3-.1-2.7-.4-3.5z"/>
+    </svg>
+  );
+}
+function AppleIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="#0f172a">
+      <path d="M16.365 1.43c0 1.14-.468 2.11-1.244 2.83-.84.79-2.03 1.4-3.12 1.31-.13-1.11.44-2.28 1.19-3 .84-.85 2.28-1.47 3.17-1.14zm3.03 17.28c-.53 1.19-.78 1.72-1.46 2.77-.94 1.46-2.27 3.28-3.92 3.3-1.46.02-1.83-.95-3.8-.94-1.97.01-2.38.96-3.84.94-1.65-.02-2.91-1.66-3.85-3.12C.31 17.65-.53 12.79 1.1 9.54c1.07-2.11 3.02-3.44 5.13-3.47 1.53-.03 2.98 1.03 3.92 1.03.93 0 2.68-1.27 4.52-1.09.77.03 2.93.31 4.32 2.35-.11.07-2.58 1.5-2.55 4.48.03 3.57 3.14 4.76 3.18 4.78-.03.08-.5 1.68-1.65 3.79z"/>
+    </svg>
   );
 }
 
@@ -179,6 +271,7 @@ export default function Login() {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
+  const [remember, setRemember] = useState(true);
   const [loading, setLoading] = useState(false);
   const [slowWarn, setSlowWarn] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
@@ -191,7 +284,7 @@ export default function Login() {
     setSlowWarn(false);
     const warnTimer = setTimeout(() => setSlowWarn(true), 5000);
     try {
-      const user = await login(identifier, password);
+      const user = await login(identifier, password, remember);
       clearTimeout(warnTimer);
       toast.success(`Welcome, ${user.full_name}`);
       const routes = { doctor: '/doctor', pharmacy: '/pharmacy', patient: '/patient', admin: '/admin' };
@@ -206,141 +299,41 @@ export default function Login() {
   };
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', fontFamily: "'Inter', sans-serif" }}>
-
-      {/* ══════════════ LEFT PANEL — image + branding ══════════════ */}
-      <div style={{
-        flex: '0 0 52%',
-        position: 'relative',
-        overflow: 'hidden',
-        display: 'none', /* hidden on mobile, shown on md+ via media query below */
-      }}
-        className="login-left-panel"
-      >
-        {/* Background photo */}
-        <div style={{
-          position: 'absolute', inset: 0,
-          backgroundImage: 'url(/bg-login.jpg)',
-          backgroundSize: 'cover', backgroundPosition: 'center top',
-        }} />
-
-        {/* Dark gradient overlay */}
-        <div style={{
-          position: 'absolute', inset: 0,
-          background: 'linear-gradient(160deg, rgba(2,68,48,0.82) 0%, rgba(5,150,105,0.70) 55%, rgba(4,120,87,0.88) 100%)',
-        }} />
-
-        {/* Content on top */}
-        <div style={{
-          position: 'relative', zIndex: 2,
-          display: 'flex', flexDirection: 'column',
-          height: '100%', padding: '44px 48px',
-          justifyContent: 'space-between',
-        }}>
-          {/* Top: logo + wordmark */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <img src="/logo.png" alt="CareWeave eRx"
-              style={{ height: '44px', objectFit: 'contain', filter: 'brightness(0) invert(1)' }} />
-          </div>
-
-          {/* Mid: headline */}
-          <div>
-            <div style={{
-              display: 'inline-block', background: 'rgba(255,255,255,0.15)',
-              backdropFilter: 'blur(6px)', borderRadius: '20px',
-              padding: '4px 14px', marginBottom: '18px',
-            }}>
-              <span style={{ color: 'rgba(255,255,255,0.9)', fontSize: '12px', fontWeight: '600', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-                Ministry of Health · Sri Lanka
-              </span>
-            </div>
-
-            <h1 style={{
-              color: 'white', fontSize: '32px', fontWeight: '800',
-              lineHeight: '1.2', marginBottom: '12px', letterSpacing: '-0.5px',
-            }}>
-              Digital Prescriptions,<br />
-              <span style={{ color: '#6ee7b7' }}>Smarter Healthcare</span>
-            </h1>
-
-            <p style={{
-              color: 'rgba(255,255,255,0.78)', fontSize: '15px',
-              lineHeight: '1.6', maxWidth: '340px', marginBottom: '32px',
-            }}>
-              Sri Lanka's secure national eRx platform — connecting doctors, pharmacies and patients in real time.
-            </p>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <Feature icon={Stethoscope} text="Instant digital prescriptions from verified doctors" />
-              <Feature icon={Pill} text="Real-time pharmacy dispensing & tracking" />
-              <Feature icon={ShieldCheck} text="End-to-end encrypted & government approved" />
-              <Feature icon={Clock} text="24/7 access to your complete health history" />
-            </div>
-          </div>
-
-          {/* Bottom: stats */}
-          <div style={{ display: 'flex', gap: '28px' }}>
-            {[['Doctors', '2,400+'], ['Pharmacies', '850+'], ['Prescriptions', '180K+']].map(([label, val]) => (
-              <div key={label}>
-                <div style={{ color: '#6ee7b7', fontSize: '22px', fontWeight: '800', lineHeight: 1 }}>{val}</div>
-                <div style={{ color: 'rgba(255,255,255,0.65)', fontSize: '12px', marginTop: '2px' }}>{label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* ══════════════ RIGHT PANEL — login form ══════════════ */}
-      <div style={{
-        flex: 1,
-        display: 'flex',
-        flexDirection: 'column',
-        background: '#f8fafb',
-        position: 'relative',
-        overflow: 'auto',
+    <div className="login-page" style={{
+      minHeight: '100vh', display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center',
+      background: '#eef2f1', fontFamily: "'Inter', sans-serif",
+    }}>
+      <div className="login-card" style={{
+        display: 'flex', width: '100%', maxWidth: '1080px',
+        background: 'white', overflow: 'hidden',
+        boxShadow: '0 30px 60px -20px rgba(15,23,42,0.25)',
       }}>
 
-        {/* Mobile-only background (when left panel hidden) */}
-        <div className="login-mobile-bg" style={{
-          position: 'fixed', inset: 0, zIndex: 0,
-          backgroundImage: 'url(/bg-login.jpg)',
-          backgroundSize: 'cover', backgroundPosition: 'center',
-          opacity: 0.08,
-        }} />
-
-        <div style={{
-          flex: 1, display: 'flex', flexDirection: 'column',
-          alignItems: 'center', justifyContent: 'center',
-          padding: '40px 24px 80px',
-          position: 'relative', zIndex: 1,
+        {/* ══════════════ LEFT PANEL — login form ══════════════ */}
+        <div className="login-form-panel" style={{
+          flex: 1,
+          display: 'flex', flexDirection: 'column',
+          padding: 'clamp(24px, 6vw, 40px) clamp(20px, 6vw, 44px) 28px',
         }}>
-
-          {/* Mobile logo (only shows when left panel hidden) */}
-          <div className="login-mobile-logo" style={{ marginBottom: '24px', textAlign: 'center' }}>
-            <img src="/logo.png" alt="CareWeave eRx" style={{ height: '52px', objectFit: 'contain' }} />
+          {/* Logo */}
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '32px' }}>
+            <img src="/logo.png" alt="CareWeave eRx" style={{ height: 'clamp(52px, 12vw, 68px)', objectFit: 'contain' }} />
           </div>
 
-          {/* Form card */}
-          <div style={{
-            width: '100%', maxWidth: '420px',
-            background: 'white',
-            borderRadius: '20px',
-            boxShadow: '0 4px 24px rgba(0,0,0,0.07), 0 1px 4px rgba(0,0,0,0.04)',
-            padding: '36px 36px 32px',
-            border: '1px solid rgba(0,0,0,0.05)',
-          }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', maxWidth: '340px', width: '100%', margin: '0 auto' }}>
 
             {/* Form header */}
-            <div style={{ marginBottom: '28px' }}>
-              <h2 style={{ fontSize: '22px', fontWeight: '800', color: '#0f172a', marginBottom: '6px', letterSpacing: '-0.3px' }}>
-                Welcome back
+            <div style={{ marginBottom: '26px' }}>
+              <h2 style={{ fontSize: '26px', fontWeight: '800', color: '#0f172a', marginBottom: '8px', letterSpacing: '-0.4px' }}>
+                Welcome Back
               </h2>
-              <p style={{ fontSize: '14px', color: '#64748b' }}>
-                Sign in to your CareWeave eRx account
+              <p style={{ fontSize: '13.5px', color: '#64748b' }}>
+                Enter your NIC, mobile or email and password to access your account.
               </p>
             </div>
 
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
               {/* Identifier */}
               <div>
@@ -367,14 +360,9 @@ export default function Login() {
 
               {/* Password */}
               <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '7px' }}>
-                  <label style={{ fontSize: '13px', fontWeight: '600', color: '#374151' }}>
-                    Password
-                  </label>
-                  <Link to="/forgot-password" style={{ fontSize: '12.5px', color: '#059669', fontWeight: '500', textDecoration: 'none' }}>
-                    Forgot password?
-                  </Link>
-                </div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '7px' }}>
+                  Password
+                </label>
                 <div style={{ position: 'relative' }}>
                   <input
                     type={showPass ? 'text' : 'password'}
@@ -401,6 +389,22 @@ export default function Login() {
                     {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
+              </div>
+
+              {/* Remember me + Forgot password */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '13px', color: '#374151', cursor: 'pointer', userSelect: 'none' }}>
+                  <input
+                    type="checkbox"
+                    checked={remember}
+                    onChange={e => setRemember(e.target.checked)}
+                    style={{ width: '15px', height: '15px', accentColor: '#059669', cursor: 'pointer' }}
+                  />
+                  Remember me
+                </label>
+                <Link to="/forgot-password" style={{ fontSize: '12.5px', color: '#059669', fontWeight: '600', textDecoration: 'none' }}>
+                  Forgot password?
+                </Link>
               </div>
 
               {/* Slow warning */}
@@ -440,63 +444,143 @@ export default function Login() {
                     }} />
                     Signing in…
                   </>
-                ) : 'Sign in'}
+                ) : 'Log In'}
               </button>
             </form>
 
             {/* Divider */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '22px 0 18px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '20px 0 16px' }}>
               <div style={{ flex: 1, height: '1px', background: '#f1f5f9' }} />
-              <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: '500' }}>New to CareWeave eRx?</span>
+              <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: '500' }}>Or Log In With</span>
               <div style={{ flex: 1, height: '1px', background: '#f1f5f9' }} />
+            </div>
+
+            {/* Social login */}
+            <div style={{ display: 'flex', gap: '10px' }}>
+              {[
+                { icon: <GoogleIcon />, label: 'Google' },
+                { icon: <AppleIcon />, label: 'Apple' },
+              ].map(({ icon, label }) => (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() => toast(`${label} sign-in is coming soon`, { icon: 'ℹ️' })}
+                  style={{
+                    flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                    padding: '10px', border: '1.5px solid #e2e8f0', borderRadius: '10px',
+                    background: 'white', fontSize: '13.5px', fontWeight: '600', color: '#374151',
+                    cursor: 'pointer', transition: 'all 0.15s',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'white'}
+                >
+                  {icon}
+                  {label}
+                </button>
+              ))}
             </div>
 
             {/* Register links */}
-            <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
-              {[
-                { to: '/register/patient', label: '🧑‍⚕️ Patient' },
-                { to: '/register/doctor', label: '🩺 Doctor' },
-                { to: '/register/pharmacy', label: '🏥 Pharmacy' },
-              ].map(({ to, label }) => (
-                <Link key={to} to={to} style={{
-                  fontSize: '13px', fontWeight: '600', color: '#059669',
-                  textDecoration: 'none', padding: '7px 14px',
-                  border: '1.5px solid #d1fae5', borderRadius: '8px',
-                  background: '#f0fdf4', transition: 'all 0.15s',
-                }}
-                  onMouseEnter={e => { e.target.style.background = '#dcfce7'; e.target.style.borderColor = '#6ee7b7'; }}
-                  onMouseLeave={e => { e.target.style.background = '#f0fdf4'; e.target.style.borderColor = '#d1fae5'; }}
-                >
-                  {label}
-                </Link>
-              ))}
+            <div style={{ textAlign: 'center', marginTop: '22px' }}>
+              <span style={{ fontSize: '13px', color: '#64748b' }}>Don't have an account? </span>
+              <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap', marginTop: '10px' }}>
+                {[
+                  { to: '/register/patient', label: 'Patient' },
+                  { to: '/register/doctor', label: 'Doctor' },
+                  { to: '/register/pharmacy', label: 'Pharmacy' },
+                ].map(({ to, label }) => (
+                  <Link key={to} to={to} style={{
+                    fontSize: '13px', fontWeight: '600', color: '#059669',
+                    textDecoration: 'none', padding: '6px 14px',
+                    border: '1.5px solid #d1fae5', borderRadius: '8px',
+                    background: '#f0fdf4', transition: 'all 0.15s',
+                  }}
+                    onMouseEnter={e => { e.target.style.background = '#dcfce7'; e.target.style.borderColor = '#6ee7b7'; }}
+                    onMouseLeave={e => { e.target.style.background = '#f0fdf4'; e.target.style.borderColor = '#d1fae5'; }}
+                  >
+                    Register as {label}
+                  </Link>
+                ))}
+              </div>
             </div>
           </div>
 
-          {/* Ministry badge */}
-          <p style={{ marginTop: '24px', fontSize: '12px', color: '#94a3b8', textAlign: 'center', fontWeight: '500' }}>
-            🏛️ Ministry of Health Sri Lanka · Secure Digital Health Platform
-          </p>
+          {/* Bottom mini-footer */}
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            marginTop: '24px', fontSize: '11.5px', color: '#94a3b8',
+          }}>
+            <span>© 2026 CareWeave eRx</span>
+            <Link to="/privacy" style={{ color: '#94a3b8', textDecoration: 'none' }}>Privacy Policy</Link>
+          </div>
         </div>
 
-        {/* Footer */}
-        <footer style={{
-          position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 10,
-          background: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(8px)',
-          borderTop: '1px solid rgba(0,0,0,0.05)',
-          padding: '8px 16px',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: '12px', color: '#9ca3af', gap: '4px',
-        }}>
-          Developed by
-          <span style={{ fontWeight: '700', color: '#374151', margin: '0 2px' }}>Niwethushan</span>
-          ·
-          <a href="https://forge9x.co.uk" target="_blank" rel="noreferrer"
-            style={{ fontWeight: '700', color: '#059669', textDecoration: 'none', marginLeft: '2px' }}>
-            Forge9x
-          </a>
-        </footer>
+        {/* ══════════════ RIGHT PANEL — gradient dashboard preview ══════════════ */}
+        <div
+          className="login-side-panel"
+          style={{
+            flex: '0 0 54%',
+            position: 'relative',
+            overflow: 'hidden',
+            background: 'linear-gradient(150deg, #10b981 0%, #059669 45%, #047857 100%)',
+            display: 'none', /* hidden on mobile, shown on md+ via media query below */
+            flexDirection: 'column',
+            padding: '44px 44px 40px',
+          }}
+        >
+          {/* Decorative blurred circles */}
+          <div style={{
+            position: 'absolute', top: '-60px', right: '-60px', width: '220px', height: '220px',
+            borderRadius: '50%', background: 'rgba(255,255,255,0.10)', filter: 'blur(10px)',
+          }} />
+          <div style={{
+            position: 'absolute', bottom: '-80px', left: '-60px', width: '260px', height: '260px',
+            borderRadius: '50%', background: 'rgba(255,255,255,0.08)', filter: 'blur(10px)',
+          }} />
+
+          <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', height: '100%' }}>
+            {/* Badge */}
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: '6px', alignSelf: 'flex-start',
+              background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(6px)', borderRadius: '20px',
+              padding: '4px 14px', marginBottom: '18px',
+            }}>
+              <ShieldCheck size={13} color="white" />
+              <span style={{ color: 'rgba(255,255,255,0.9)', fontSize: '11.5px', fontWeight: '600', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                Ministry of Health · Sri Lanka
+              </span>
+            </div>
+
+            {/* Headline */}
+            <h1 style={{
+              color: 'white', fontSize: '28px', fontWeight: '800',
+              lineHeight: '1.28', marginBottom: '10px', letterSpacing: '-0.4px', maxWidth: '380px',
+            }}>
+              Effortlessly manage prescriptions and pharmacy operations.
+            </h1>
+            <p style={{
+              color: 'rgba(255,255,255,0.78)', fontSize: '14px',
+              lineHeight: '1.6', maxWidth: '360px', marginBottom: '28px',
+            }}>
+              Log in to access the CareWeave eRx dashboard connecting doctors, pharmacies and patients in real time.
+            </p>
+
+            <DashboardMockup />
+          </div>
+        </div>
       </div>
+
+      {/* Footer */}
+      <footer style={{
+        marginTop: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: '12px', color: '#94a3b8', gap: '4px',
+      }}>
+        Developed by
+        <a href="https://forge9x.co.uk" target="_blank" rel="noreferrer"
+          style={{ fontWeight: '700', color: '#059669', textDecoration: 'none' }}>
+          Forge9x
+        </a>
+      </footer>
 
       {/* ══════════════ CHATBOT ══════════════ */}
       <button onClick={() => setChatOpen(!chatOpen)} style={{
@@ -531,14 +615,20 @@ export default function Login() {
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        /* Show left panel on md+ screens */
-        @media (min-width: 768px) {
-          .login-left-panel { display: block !important; }
-          .login-mobile-bg { display: none !important; }
-          .login-mobile-logo { display: none !important; }
+        /* Mobile: form fills the card, no rounded corners (edge-to-edge) */
+        .login-page { padding: 0; }
+        .login-card { border-radius: 0; min-height: 100vh; }
+        @media (min-width: 480px) {
+          .login-page { padding: 24px 16px 48px; }
+          .login-card { border-radius: 20px; min-height: auto; }
         }
-        @media (max-width: 767px) {
-          .login-left-panel { display: none !important; }
+
+        /* Show gradient side panel + constrain form width on md+ screens only */
+        @media (min-width: 768px) {
+          .login-page { padding: 32px 16px 64px; }
+          .login-side-panel { display: flex !important; }
+          .login-form-panel { flex: 0 0 46% !important; }
+          .login-card { border-radius: 28px; min-height: 640px; }
         }
 
         input::placeholder { color: #c4cbd6; }

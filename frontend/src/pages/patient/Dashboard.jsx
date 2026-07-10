@@ -2,10 +2,13 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
+import { useSidebarExtras } from '../../context/SidebarExtrasContext';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
-import { FileText, Bell, MapPin, Activity, User, Pill, Stethoscope, Download, Navigation, Clock, ChevronDown, ChevronUp, AlarmClock } from 'lucide-react';
+import { FileText, Bell, MapPin, Activity, User, Pill, Stethoscope, Download, Navigation, Clock, ChevronDown, ChevronUp, AlarmClock, FolderOpen } from 'lucide-react';
 import TodayMedicines from './TodayMedicines';
+
+const DOC_TYPE_LABELS = { xray: 'X-Ray', blood_report: 'Blood Report', ecg: 'ECG Report', other: 'Other' };
 
 // Expandable prescription card with full medicine details
 function PrescriptionCard({ p, navigate, statusColors }) {
@@ -128,11 +131,13 @@ const statusColors = {
 
 export default function PatientDashboard() {
   const { user } = useAuth();
+  const { setExtraNav } = useSidebarExtras() || {};
   const { greeting, emoji, now } = useGreeting();
   const navigate = useNavigate();
   const [prescriptions, setPrescriptions] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [pharmacies, setPharmacies] = useState([]);
+  const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('today');
 
@@ -141,13 +146,24 @@ export default function PatientDashboard() {
       api.get('/prescriptions'),
       api.get('/notifications'),
       api.get('/pharmacies'),
-    ]).then(([pRes, nRes, phRes]) => {
+      api.get('/patients/me/documents'),
+    ]).then(([pRes, nRes, phRes, docRes]) => {
       setPrescriptions(pRes.data.data.prescriptions);
       setNotifications(nRes.data.data);
       setPharmacies(phRes.data.data);
+      setDocuments(docRes.data.data || []);
     }).catch(() => toast.error('Failed to load data'))
       .finally(() => setLoading(false));
   }, []);
+
+  const downloadDocument = async (doc) => {
+    try {
+      const res = await api.get(`/documents/${doc.id}/file`, { responseType: 'blob' });
+      window.open(URL.createObjectURL(res.data), '_blank');
+    } catch {
+      toast.error('Failed to open document');
+    }
+  };
 
   const setPreferredPharmacy = async (pharmacy_id) => {
     try {
@@ -205,20 +221,37 @@ export default function PatientDashboard() {
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
   const tabs = [
-    { key: 'today',         label: "Today's Meds",                                     icon: AlarmClock },
-    { key: 'tracker',       label: 'Track Rx',                                          icon: Navigation },
-    { key: 'dashboard',     label: 'Overview',                                          icon: Activity },
-    { key: 'prescriptions', label: 'Prescriptions',                                     icon: FileText },
-    { key: 'medicines',     label: 'Medicines',                                         icon: Pill },
-    { key: 'doctors',       label: 'My Doctors',                                        icon: Stethoscope },
-    { key: 'notifications', label: unreadCount > 0 ? `Alerts (${unreadCount})` : 'Alerts', icon: Bell },
-    { key: 'pharmacy',      label: 'Pharmacy',                                          icon: MapPin },
+    { key: 'today',         label: "Today's Meds", icon: AlarmClock },
+    { key: 'tracker',       label: 'Track Rx',      icon: Navigation },
+    { key: 'dashboard',     label: 'Overview',      icon: Activity },
+    { key: 'prescriptions', label: 'Prescriptions', icon: FileText },
+    { key: 'documents',     label: 'My Documents',  icon: FolderOpen },
+    { key: 'medicines',     label: 'Medicines',     icon: Pill },
+    { key: 'doctors',       label: 'My Doctors',    icon: Stethoscope },
+    { key: 'notifications', label: 'Alerts',        icon: Bell },
+    { key: 'pharmacy',      label: 'Pharmacy',      icon: MapPin },
   ];
+
+  // Show these tabs directly in the app's main sidebar instead of a second, separate panel
+  useEffect(() => {
+    if (!setExtraNav) return;
+    setExtraNav({
+      items: tabs.map(t => ({
+        key: t.key,
+        label: t.label,
+        icon: t.icon,
+        active: tab === t.key,
+        badge: t.key === 'notifications' && unreadCount > 0 ? unreadCount : null,
+        onClick: () => setTab(t.key),
+      })),
+    });
+    return () => setExtraNav(null);
+  }, [tab, unreadCount]);
 
   if (loading) return <div className="p-8 text-center text-gray-400">Loading...</div>;
 
   return (
-    <div className="p-4 sm:p-6 max-w-5xl mx-auto">
+    <div className="p-4 sm:p-6 max-w-6xl mx-auto">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-5 gap-3">
         <div>
@@ -238,8 +271,8 @@ export default function PatientDashboard() {
         </button>
       </div>
 
-      {/* Tabs - scrollable on mobile, pr-6 ensures last tab isn't clipped */}
-      <div className="flex gap-0.5 mb-5 border-b border-gray-100 overflow-x-auto pb-0 scrollbar-hide pr-6">
+      {/* Mobile/tablet tabs - horizontal scroll. On lg+, these same tabs appear in the main sidebar instead. */}
+      <div className="lg:hidden flex gap-0.5 mb-5 border-b border-gray-100 overflow-x-auto pb-0 scrollbar-hide pr-6">
         {tabs.map(t => (
           <button key={t.key} onClick={() => setTab(t.key)}
             className={`flex items-center gap-1 px-2.5 py-2.5 text-xs font-medium border-b-2 whitespace-nowrap transition-colors shrink-0 ${
@@ -377,6 +410,42 @@ export default function PatientDashboard() {
             <div className="card p-8 text-center text-gray-400">No prescriptions yet</div>
           ) : (
             prescriptions.map(p => <PrescriptionCard key={p.id} p={p} navigate={navigate} statusColors={statusColors} />)
+          )}
+        </div>
+      )}
+
+      {/* DOCUMENTS TAB */}
+      {tab === 'documents' && (
+        <div className="card">
+          <div className="p-4 border-b border-gray-100">
+            <h2 className="font-semibold">My Documents</h2>
+            <p className="text-xs text-gray-400 mt-0.5">X-rays, blood reports, ECGs and other files your doctors have uploaded for you.</p>
+          </div>
+          {documents.length === 0 ? (
+            <div className="p-8 text-center text-gray-400">No documents uploaded yet</div>
+          ) : (
+            <div className="divide-y divide-gray-50">
+              {documents.map(doc => (
+                <div key={doc.id} className="p-4 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-9 h-9 rounded-lg bg-brand-50 flex items-center justify-center shrink-0">
+                      <FileText className="w-4 h-4 text-brand-600" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-800 truncate">{DOC_TYPE_LABELS[doc.document_type] || doc.document_type}</p>
+                      <p className="text-xs text-gray-400">
+                        Dr. {doc.uploaded_by_name} · {format(new Date(doc.created_at), 'dd MMM yyyy')}
+                      </p>
+                      {doc.notes && <p className="text-xs text-gray-500 mt-0.5">{doc.notes}</p>}
+                    </div>
+                  </div>
+                  <button onClick={() => downloadDocument(doc)}
+                    className="text-brand-600 hover:text-brand-700 shrink-0 p-1.5 rounded-lg hover:bg-brand-50">
+                    <Download className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       )}

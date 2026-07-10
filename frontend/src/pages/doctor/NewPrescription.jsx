@@ -1,15 +1,19 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
-import { Plus, Trash2, Search, MapPin, UserX, UserCheck, X, ChevronRight } from 'lucide-react';
+import { Plus, Trash2, Search, MapPin, UserX, UserCheck, X, ChevronRight, AlertTriangle, Upload, Camera, FileText, Download, Paperclip } from 'lucide-react';
 import { format } from 'date-fns';
+import { checkAllergyConflicts, checkDrugInteractions } from '../../data/drugInteractions';
+import CameraCapture from '../../components/CameraCapture';
+
+const DOC_TYPE_LABELS = { xray: 'X-Ray', blood_report: 'Blood Report', ecg: 'ECG Report', other: 'Other' };
 
 const emptyMed = { medicine_name: '', generic_name: '', dosage: '', quantity: 1, frequency: '', duration: '', instructions: '' };
 const emptyManual = { name: '', nic: '', dob: '', gender: '', mobile: '' };
 
 // ── Patient card shown after selection ─────────────────────────────────────
-function PatientCard({ patient, onClear }) {
+function PatientCard({ patient, activeMedicines, onClear }) {
   return (
     <div className="mt-3 p-3 bg-green-50 rounded-lg border border-green-200 text-sm">
       <div className="flex items-start justify-between gap-2">
@@ -29,6 +33,11 @@ function PatientCard({ patient, onClear }) {
           )}
           {patient.allergies && (
             <p className="text-red-600 font-medium text-xs">⚠ Allergies: {patient.allergies}</p>
+          )}
+          {activeMedicines?.length > 0 && (
+            <p className="text-green-700 text-xs">
+              💊 Currently on: {activeMedicines.map(m => m.medicine_name).join(', ')}
+            </p>
           )}
         </div>
         <button type="button" onClick={onClear}
@@ -61,6 +70,17 @@ export default function NewPrescription() {
   const [pharmacyId, setPharmacyId] = useState('');
   const [loadingPharmacies, setLoadingPharmacies] = useState(false);
 
+  // Patient's other current medicines — used for interaction checks
+  const [activeMedicines, setActiveMedicines] = useState([]);
+
+  // Medical documents (X-ray, blood report, ECG...)
+  const [documents, setDocuments] = useState([]);
+  const [docType, setDocType] = useState('xray');
+  const [docNotes, setDocNotes] = useState('');
+  const [docFile, setDocFile] = useState(null);
+  const [showCamera, setShowCamera] = useState(false);
+  const [uploadingDoc, setUploadingDoc] = useState(false);
+
   // Prescription fields
   const [diagnosis, setDiagnosis] = useState('');
   const [notes, setNotes] = useState('');
@@ -79,6 +99,10 @@ export default function NewPrescription() {
     setManual({ ...emptyManual });
     setPharmacies([]);
     setPharmacyId('');
+    setActiveMedicines([]);
+    setDocuments([]);
+    setDocFile(null);
+    setDocNotes('');
   };
 
   const loadPharmacies = async (found) => {
@@ -101,11 +125,52 @@ export default function NewPrescription() {
     }
   };
 
+  const loadActiveMedicines = async (patientId) => {
+    setActiveMedicines([]);
+    try {
+      const { data } = await api.get(`/patients/${patientId}/active-medicines`);
+      setActiveMedicines(data.data || []);
+    } catch {
+      // non-critical — interaction check just runs with less data
+    }
+  };
+
+  const loadDocuments = async (patientId) => {
+    setDocuments([]);
+    try {
+      const { data } = await api.get(`/patients/${patientId}/documents`);
+      setDocuments(data.data || []);
+    } catch {
+      // non-critical
+    }
+  };
+
   const selectPatient = async (p) => {
     setPatient(p);
     setResults([]);
-    await loadPharmacies(p);
+    await Promise.all([loadPharmacies(p), loadActiveMedicines(p.id), loadDocuments(p.id)]);
     toast.success(`Patient selected: ${p.full_name}`);
+  };
+
+  const uploadDocument = async () => {
+    if (!docFile) return toast.error('Choose a file or take a photo first');
+    if (!patient?.id) return toast.error('Select a registered patient first');
+    setUploadingDoc(true);
+    try {
+      const form = new FormData();
+      form.append('file', docFile);
+      form.append('document_type', docType);
+      form.append('notes', docNotes);
+      const { data } = await api.post(`/patients/${patient.id}/documents`, form);
+      setDocuments(prev => [{ ...data.data, uploaded_by_name: 'You' }, ...prev]);
+      setDocFile(null);
+      setDocNotes('');
+      toast.success('Document uploaded — patient has been notified');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Upload failed');
+    } finally {
+      setUploadingDoc(false);
+    }
   };
 
   const searchPatient = async () => {
@@ -155,6 +220,22 @@ export default function NewPrescription() {
   };
   const addMed = () => setMedicines([...medicines, { ...emptyMed }]);
   const removeMed = (i) => setMedicines(medicines.filter((_, idx) => idx !== i));
+
+  // Allergy + drug-interaction warnings — an aid for the doctor, not a
+  // replacement for clinical judgement or pharmacist review.
+  const safetyWarnings = useMemo(() => {
+    const names = medicines.map(m => m.medicine_name).filter(Boolean);
+    const activeNames = activeMedicines.map(m => m.medicine_name);
+    const warnings = new Set();
+
+    names.forEach((name, i) => {
+      checkAllergyConflicts(name, patient?.allergies).forEach(w => warnings.add(w));
+      const others = [...names.slice(0, i), ...names.slice(i + 1), ...activeNames];
+      checkDrugInteractions(name, others).forEach(w => warnings.add(w));
+    });
+
+    return [...warnings];
+  }, [medicines, patient, activeMedicines]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -309,7 +390,11 @@ export default function NewPrescription() {
 
           {/* Selected patient card */}
           {mode === 'search' && patient && (
-            <PatientCard patient={patient} onClear={() => { setPatient(null); setResults([]); setPharmacies([]); }} />
+            <PatientCard patient={patient} activeMedicines={activeMedicines}
+              onClear={() => {
+                setPatient(null); setResults([]); setPharmacies([]); setActiveMedicines([]);
+                setDocuments([]); setDocFile(null); setDocNotes('');
+              }} />
           )}
 
           {/* ── Manual Mode ── */}
@@ -390,6 +475,77 @@ export default function NewPrescription() {
           </div>
         )}
 
+        {/* ── Medical Documents (X-ray, blood report, ECG...) — visible to doctor & patient only ── */}
+        {mode === 'search' && patient && (
+          <div className="card p-4 sm:p-6">
+            <h2 className="font-semibold mb-1">Medical Documents</h2>
+            <p className="text-xs text-gray-400 mb-4">Upload X-rays, blood reports, ECGs, or other files. The patient is notified automatically. Pharmacies cannot see these.</p>
+
+            <div className="flex flex-col sm:flex-row gap-3 mb-3">
+              <select className="input sm:w-48" value={docType} onChange={e => setDocType(e.target.value)}>
+                <option value="xray">X-Ray</option>
+                <option value="blood_report">Blood Report</option>
+                <option value="ecg">ECG Report</option>
+                <option value="other">Other</option>
+              </select>
+              <input className="input flex-1" placeholder="Notes (optional)" value={docNotes} onChange={e => setDocNotes(e.target.value)} />
+            </div>
+
+            <div className="flex flex-wrap gap-2 mb-3">
+              <label className="btn-secondary flex items-center gap-2 text-sm cursor-pointer">
+                <Upload className="w-4 h-4" /> Choose File
+                <input type="file" accept=".pdf,image/jpeg,image/png,image/jpg" className="hidden"
+                  onChange={e => setDocFile(e.target.files?.[0] || null)} />
+              </label>
+              <button type="button" onClick={() => setShowCamera(true)} className="btn-secondary flex items-center gap-2 text-sm">
+                <Camera className="w-4 h-4" /> Take Photo
+              </button>
+              {docFile && (
+                <span className="flex items-center gap-1.5 text-sm text-gray-600 bg-gray-50 px-3 py-1.5 rounded-lg">
+                  <Paperclip className="w-3.5 h-3.5" /> {docFile.name}
+                  <button type="button" onClick={() => setDocFile(null)} className="text-gray-400 hover:text-red-500">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </span>
+              )}
+              <button type="button" onClick={uploadDocument} disabled={!docFile || uploadingDoc}
+                className="btn-primary flex items-center gap-2 text-sm ml-auto">
+                {uploadingDoc ? 'Uploading...' : 'Upload'}
+              </button>
+            </div>
+
+            {documents.length > 0 && (
+              <div className="space-y-2 pt-3 border-t border-gray-100">
+                {documents.map(doc => (
+                  <div key={doc.id} className="flex items-center justify-between gap-2 p-2.5 bg-gray-50 rounded-lg text-sm">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <FileText className="w-4 h-4 text-brand-600 shrink-0" />
+                      <div className="min-w-0">
+                        <p className="font-medium text-gray-800 truncate">{DOC_TYPE_LABELS[doc.document_type]} — {doc.file_name}</p>
+                        <p className="text-xs text-gray-400">{format(new Date(doc.created_at), 'dd MMM yyyy, hh:mm a')} · {doc.uploaded_by_name}</p>
+                      </div>
+                    </div>
+                    <a href={`${api.defaults.baseURL}/documents/${doc.id}/file`} target="_blank" rel="noreferrer"
+                      onClick={async (e) => {
+                        e.preventDefault();
+                        const res = await api.get(`/documents/${doc.id}/file`, { responseType: 'blob' });
+                        const url = URL.createObjectURL(res.data);
+                        window.open(url, '_blank');
+                      }}
+                      className="text-brand-600 hover:text-brand-700 shrink-0">
+                      <Download className="w-4 h-4" />
+                    </a>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {showCamera && (
+          <CameraCapture onCapture={setDocFile} onClose={() => setShowCamera(false)} />
+        )}
+
         {/* ── Clinical Details ── */}
         <div className="card p-4 sm:p-6">
           <h2 className="font-semibold mb-4">Clinical Details</h2>
@@ -416,6 +572,27 @@ export default function NewPrescription() {
             </div>
           </div>
         </div>
+
+        {/* ── Safety warnings: allergy conflicts + drug interactions ── */}
+        {safetyWarnings.length > 0 && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+              <h3 className="font-semibold text-red-800 text-sm">Safety check — please review</h3>
+            </div>
+            <ul className="space-y-1 mb-2">
+              {safetyWarnings.map((w, i) => (
+                <li key={i} className="text-sm text-red-700 flex items-start gap-1.5">
+                  <span className="mt-1.5 w-1 h-1 rounded-full bg-red-500 shrink-0" />
+                  {w}
+                </li>
+              ))}
+            </ul>
+            <p className="text-xs text-red-500">
+              This is an automated aid based on common known interactions — it does not replace clinical judgement.
+            </p>
+          </div>
+        )}
 
         {/* ── Medicines ── */}
         <div className="card p-4 sm:p-6">
