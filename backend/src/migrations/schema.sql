@@ -223,3 +223,20 @@ CREATE TRIGGER update_prescriptions_updated_at BEFORE UPDATE ON prescriptions FO
 -- =====================
 ALTER TABLE patients ADD COLUMN IF NOT EXISTS city VARCHAR(100);
 ALTER TABLE patients ADD COLUMN IF NOT EXISTS district VARCHAR(100);
+
+-- =====================
+-- PATIENT DOCUMENTS (X-ray, blood report, ECG, etc.)
+-- Doctors upload; patients can view; pharmacies have no access.
+-- =====================
+CREATE TABLE IF NOT EXISTS patient_documents (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    patient_id UUID NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+    uploaded_by UUID NOT NULL REFERENCES users(id),
+    document_type VARCHAR(50) NOT NULL CHECK (document_type IN ('xray','blood_report','ecg','other')),
+    file_name VARCHAR(255) NOT NULL,
+    file_path VARCHAR(500) NOT NULL,
+    file_type VARCHAR(10) NOT NULL,
+    notes TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_patient_documents_patient ON patient_documents(patient_id);

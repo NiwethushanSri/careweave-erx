@@ -5,6 +5,7 @@ const { authenticate, authorize } = require('../middleware/auth');
 const authCtrl = require('../controllers/authController');
 const prescCtrl = require('../controllers/prescriptionController');
 const adminCtrl = require('../controllers/adminController');
+const documentCtrl = require('../controllers/documentController');
 const pool = require('../config/database');
 const { getNotifications, markRead } = require('../utils/notifications');
 
@@ -160,6 +161,41 @@ router.get('/patients/search', authenticate, authorize('doctor'), async (req, re
     res.status(500).json({ success: false, message: 'Search failed' });
   }
 });
+
+// Distinct medicines from the patient's non-cancelled, still-valid prescriptions —
+// used by the doctor's new-prescription screen for interaction/allergy checks.
+router.get('/patients/:patientId/active-medicines', authenticate, authorize('doctor'), async (req, res) => {
+  try {
+    const { patientId } = req.params;
+    const result = await pool.query(
+      `SELECT DISTINCT mi.medicine_name, mi.generic_name
+       FROM medicine_items mi
+       JOIN prescriptions p ON p.id = mi.prescription_id
+       WHERE p.patient_id = $1 AND p.status != 'cancelled' AND p.valid_until >= CURRENT_DATE
+       ORDER BY mi.medicine_name`,
+      [patientId]
+    );
+    res.json({ success: true, data: result.rows });
+  } catch (err) {
+    console.error('Active medicines fetch error:', err);
+    res.status(500).json({ success: false, message: 'Failed to load active medicines' });
+  }
+});
+
+// ========================
+// PATIENT DOCUMENTS (X-ray, blood report, ECG) — doctor uploads, patient views.
+// Pharmacy is intentionally NOT authorized on any of these routes.
+// ========================
+router.post('/patients/:patientId/documents', authenticate, authorize('doctor'), (req, res, next) => {
+  documentCtrl.upload.single('file')(req, res, (err) => {
+    if (err) return res.status(400).json({ success: false, message: err.message });
+    next();
+  });
+}, documentCtrl.uploadPatientDocument);
+
+router.get('/patients/me/documents', authenticate, authorize('patient'), documentCtrl.listMyDocuments);
+router.get('/patients/:patientId/documents', authenticate, authorize('doctor', 'patient'), documentCtrl.listPatientDocuments);
+router.get('/documents/:documentId/file', authenticate, authorize('doctor', 'patient'), documentCtrl.downloadDocument);
 
 router.patch('/patients/preferred-pharmacy', authenticate, authorize('patient'), async (req, res) => {
   try {

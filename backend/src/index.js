@@ -271,7 +271,7 @@ app.use(cors({
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 min
-  max: 100,
+  max: process.env.NODE_ENV === 'production' ? 100 : 1000, // higher cap in dev to avoid tripping during local testing
   message: { success: false, message: 'Too many requests. Please try again later.' }
 });
 const authLimiter = rateLimit({
